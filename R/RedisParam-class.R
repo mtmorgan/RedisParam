@@ -10,7 +10,10 @@ setOldClass(c("redis_NULL", "redis_manager"))
 
 .RedisParam_prototype <- c(
     .BiocParallelParam_prototype,
-    list(hostname = "127.0.0.1", port = 6379L, backend = .redis_NULL())
+    list(
+        hostname = "127.0.0.1", port = 6379L, backend = .redis_NULL(),
+        is.worker = NA
+    )
 )
 
 #' @import methods BiocParallel
@@ -18,7 +21,8 @@ setOldClass(c("redis_NULL", "redis_manager"))
     "RedisParam",
     contains = "BiocParallelParam",
     fields = c(
-        hostname = "character", port = "integer", backend = "redis_manager"
+        hostname = "character", port = "integer", backend = "redis_manager",
+        is.worker = "logical"
     ),
     methods = list(
         show = function() {
@@ -26,7 +30,8 @@ setOldClass(c("redis_NULL", "redis_manager"))
             cat(
                 "  hostname: ", .redis_host(.self), "\n",
                 "  port: ", .redis_port(.self), "\n",
-                sep="")
+                "  is.worker: ", .redis_isworker(.self), "\n",
+                sep = "")
         }
     )
 )
@@ -41,6 +46,9 @@ setOldClass(c("redis_NULL", "redis_manager"))
     x$backend <- value
     invisible(x)
 }
+
+.redis_isworker <- function(x)
+    x$is.worker
 
 #' Enable redis-based parallel evaluation in BiocParallel
 #'
@@ -67,6 +75,10 @@ setOldClass(c("redis_NULL", "redis_manager"))
 #'
 #' @param manager.port integer(1) port of redis server.
 #'
+#' @param is.worker logical(1) \code{bpstart()} creates worker-only
+#'     (\code{TRUE}), manager-only (\code{TRUE}), or manager and
+#'     worker (\code{NA}, default) connections.
+#'
 #' @details Use an instance of `RedisParam()` for interactive parallel
 #'     evaluation using `bplapply()` or `bpiterate()`. `RedisParam()`
 #'     requires access to a redis server, running on
@@ -91,7 +103,8 @@ RedisParam <-
              resultdir = NA_character_, stop.on.error= TRUE,
              timeout = 2592000L, exportglobals= TRUE,
              progressbar = FALSE, RNGseed = NULL,
-             manager.hostname = "127.0.0.1", manager.port = 6379L)
+             manager.hostname = "127.0.0.1", manager.port = 6379L,
+             is.worker = NA)
 {
     if (!is.null(RNGseed))
         RNGseed <- as.integer(RNGseed)
@@ -110,7 +123,8 @@ RedisParam <-
         progressbar = as.logical(progressbar),
         RNGseed = RNGseed,
         hostname = as.character(manager.hostname),
-        port = as.integer(manager.port)
+        port = as.integer(manager.port),
+        is.worker = as.logical(is.worker)
     )
     do.call(.RedisParam, prototype)
 }
@@ -197,12 +211,20 @@ length.redis_manager <-
 .bpstart_redis_manager <-
     function(x)
 {
-    .redis(x, "redis_manager")
+    redis <- .redis(x, "redis_manager")
+    .redis_set_backend(x, redis)
+}
+
+.bpstart_redis_worker_only <-
+    function(x)
+{
+    worker <- .redis(x, "redis_worker")
+    .bpworker_impl(worker)              # blocking
 }
 
 #' @importFrom parallel mcparallel
-.redis_bpstart_multicore <-
-    function(x, uuid)
+.bpstart_redis_worker_multicore <-
+    function(x)
 {
     for (i in seq_len(bpnworkers(x))) {
         mcparallel({
@@ -237,9 +259,20 @@ setMethod(
     "bpstart", "RedisParam",
     function(x, ...)
 {
-    .redis_set_backend(x, .bpstart_redis_manager(x))
-    .redis_bpstart_multicore(x)
-    .bpstart_impl(x)
+    worker <- .redis_isworker(x)
+    if (isTRUE(worker)) {
+        ## worker only
+        .bpstart_redis_worker_only(x)
+    } else if (isFALSE(worker)) {
+        ## manager only
+        .bpstart_redis_manager(x)
+        .bpstart_impl(x)
+    } else {
+        ## worker & manager
+        .bpstart_redis_manager(x)
+        .bpstart_redis_worker_multicore(x)
+        .bpstart_impl(x)
+    }
 })
 
 #' @rdname RedisParam
@@ -249,6 +282,46 @@ setMethod(
     "bpstop", "RedisParam",
     function(x)
 {
-    x <- .bpstop_impl(x)
-    .redis_set_backend(x, .redis_NULL())
+    worker <- .redis_isworker(x)
+    if (isTRUE(worker)) {
+        ## no-op
+    } else if (isFALSE(worker)) {
+        ## don't stop workers by implicitly setting bpisup() to FALSE
+        x <- .redis_set_backend(x, .redis_NULL())
+        x <- .bpstop_impl(x)
+    } else {
+        ## stop workers
+        x <- .bpstop_impl(x)
+        x <- .redis_set_backend(x, .redis_NULL())
+    }
+    gc()                                # close connections
+    x
+})
+
+#' @rdname RedisParam
+#'
+#' @export
+setGeneric("bpstopall", function(x) standardGeneric("bpstopall"))
+
+#' @rdname RedisParam
+#'
+#' @export
+setMethod(
+    "bpstopall", "RedisParam",
+    function(x)
+{
+    if (!bpisup(x))
+        stop("'bpstopall()' requires 'bpisup()' to be TRUE")
+    worker <- .redis_isworker(x)
+    if (isTRUE(worker)) {
+        stop("use 'bpstopall()' from manager, not worker")
+    } else {
+        stop("'bpstopall' not yet implemented")
+        ## FIXME: how many signals to send?
+        redis <- bpbackend(x)$redis
+        .bpstop_impl(x)                 # send 'DONE' to all workers
+        .redis_set_backend(x, .redis_NULL())
+    }
+    gc()
+    x
 })

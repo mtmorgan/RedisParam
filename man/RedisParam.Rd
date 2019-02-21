@@ -12,6 +12,8 @@
 \alias{bpbackend,RedisParam-method}
 \alias{bpstart,RedisParam-method}
 \alias{bpstop,RedisParam-method}
+\alias{bpstopall}
+\alias{bpstopall,RedisParam-method}
 \title{Enable redis-based parallel evaluation in BiocParallel}
 \usage{
 RedisParam(workers = snowWorkers(), tasks = 0L, jobname = ipcid(),
@@ -19,7 +21,7 @@ RedisParam(workers = snowWorkers(), tasks = 0L, jobname = ipcid(),
   resultdir = NA_character_, stop.on.error = TRUE,
   timeout = 2592000L, exportglobals = TRUE, progressbar = FALSE,
   RNGseed = NULL, manager.hostname = "127.0.0.1",
-  manager.port = 6379L)
+  manager.port = 6379L, is.worker = NA)
 
 \S4method{bpisup}{RedisParam}(x)
 
@@ -28,6 +30,10 @@ RedisParam(workers = snowWorkers(), tasks = 0L, jobname = ipcid(),
 \S4method{bpstart}{RedisParam}(x, ...)
 
 \S4method{bpstop}{RedisParam}(x)
+
+bpstopall(x)
+
+\S4method{bpstopall}{RedisParam}(x)
 }
 \arguments{
 \item{workers}{See BiocParalleParam-class.}
@@ -59,6 +65,10 @@ RedisParam(workers = snowWorkers(), tasks = 0L, jobname = ipcid(),
 
 \item{manager.port}{integer(1) port of redis server.}
 
+\item{is.worker}{logical(1) \code{bpstart()} creates worker-only
+(\code{TRUE}), manager-only (\code{TRUE}), or manager and
+worker (\code{NA}, default) connections.}
+
 \item{x}{A `RedisParam` instance.}
 
 \item{\dots}{ignored.}
@@ -70,7 +80,7 @@ Enable redis-based parallel evaluation in BiocParallel
 Use an instance of `RedisParam()` for interactive parallel
     evaluation using `bplapply()` or `bpiterate()`. `RedisParam()`
     requires access to a redis server, running on
-    `manager.hostname` (e.g., 127.0.0.1) on `manager.port (e.g.,
+    `manager.hostname` (e.g., 127.0.0.1) on `manager.port` (e.g.,
     6379). `bplapply()` and `bpiterate()` will start and stop redis
     workers.
 
