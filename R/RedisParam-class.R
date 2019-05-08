@@ -76,7 +76,7 @@ setOldClass(c("redis_NULL", "redis_manager"))
 #' @param manager.port integer(1) port of redis server.
 #'
 #' @param is.worker logical(1) \code{bpstart()} creates worker-only
-#'     (\code{TRUE}), manager-only (\code{TRUE}), or manager and
+#'     (\code{TRUE}), manager-only (\code{FALSE}), or manager and
 #'     worker (\code{NA}, default) connections.
 #'
 #' @details Use an instance of `RedisParam()` for interactive parallel

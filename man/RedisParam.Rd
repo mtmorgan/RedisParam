@@ -66,7 +66,7 @@ bpstopall(x)
 \item{manager.port}{integer(1) port of redis server.}
 
 \item{is.worker}{logical(1) \code{bpstart()} creates worker-only
-(\code{TRUE}), manager-only (\code{TRUE}), or manager and
+(\code{TRUE}), manager-only (\code{FALSE}), or manager and
 worker (\code{NA}, default) connections.}
 
 \item{x}{A `RedisParam` instance.}
