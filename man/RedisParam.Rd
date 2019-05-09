@@ -8,6 +8,9 @@
 \alias{.close,redis_worker-method}
 \alias{.send_to,redis_manager-method}
 \alias{.recv_any,redis_manager-method}
+\alias{rpworkers}
+\alias{rphost}
+\alias{rpport}
 \alias{bpisup,RedisParam-method}
 \alias{bpbackend,RedisParam-method}
 \alias{bpstart,RedisParam-method}
@@ -16,12 +19,18 @@
 \alias{bpstopall,RedisParam-method}
 \title{Enable redis-based parallel evaluation in BiocParallel}
 \usage{
-RedisParam(workers = snowWorkers(), tasks = 0L, jobname = ipcid(),
-  log = FALSE, logdir = NA, threshold = "INFO",
+RedisParam(workers = rpworkers(is.worker), tasks = 0L,
+  jobname = ipcid(), log = FALSE, logdir = NA, threshold = "INFO",
   resultdir = NA_character_, stop.on.error = TRUE,
   timeout = 2592000L, exportglobals = TRUE, progressbar = FALSE,
-  RNGseed = NULL, manager.hostname = "127.0.0.1",
-  manager.port = 6379L, is.worker = NA)
+  RNGseed = NULL, manager.hostname = rphost(),
+  manager.port = rpport(), is.worker = NA)
+
+rpworkers(is.worker)
+
+rphost()
+
+rpport()
 
 \S4method{bpisup}{RedisParam}(x)
 
@@ -36,8 +45,6 @@ bpstopall(x)
 \S4method{bpstopall}{RedisParam}(x)
 }
 \arguments{
-\item{workers}{See BiocParalleParam-class.}
-
 \item{tasks}{See BiocParalleParam-class.}
 
 \item{jobname}{character(1) name (unique) used to associate manager
@@ -61,9 +68,12 @@ bpstopall(x)
 
 \item{RNGseed}{See BiocParalleParam-class.}
 
-\item{manager.hostname}{character(1) host name of redis server.}
+\item{manager.hostname}{character(1) host name of redis server,
+from system environment variable `REDIS_HOST` or, by default,
+`"127.0.0.1"`.}
 
-\item{manager.port}{integer(1) port of redis server.}
+\item{manager.port}{integer(1) port of redis server, from system
+environment variable `REDIS_PORT` or, by default, 6379.}
 
 \item{is.worker}{logical(1) \code{bpstart()} creates worker-only
 (\code{TRUE}), manager-only (\code{FALSE}), or manager and
@@ -72,6 +82,11 @@ worker (\code{NA}, default) connections.}
 \item{x}{A `RedisParam` instance.}
 
 \item{\dots}{ignored.}
+
+\item{workers}{integer(1) number of redis workers. For `is.worker
+= FALSE`, this parameter is the maximum number of workers
+expected to be available. For `is.worker = NA`, this is the
+number of workers opened by `bpstart()`.}
 }
 \description{
 Enable redis-based parallel evaluation in BiocParallel
@@ -87,6 +102,17 @@ Use an instance of `RedisParam()` for interactive parallel
     It may be convenient to use `bpstart()` and `bpstop()`
     independently, to amortize the cost of worker start-up across
     multiple calls to `bplapply()` / `bpiterate()`.
+
+`rpworkers()` determines the number of workers using
+    `snowWorkers()` if workers are created dynamically, or a fixed
+    maximum (currently 1000) if workers are listening on a queue.
+
+    `rphost()` reads the host name of the redis server from a
+    system environment variable `"REDIS_HOST"`, defaulting to
+    `"127.0.0.1"`
+
+    `rpport()` reads the port of the redis server from a system
+    environment variable `"REDIS_PORT"`, defaulting to 6379.
 }
 \examples{
 if (requireNamespace("redux")) {

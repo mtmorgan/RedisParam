@@ -11,7 +11,7 @@ setOldClass(c("redis_NULL", "redis_manager"))
 .RedisParam_prototype <- c(
     .BiocParallelParam_prototype,
     list(
-        hostname = "127.0.0.1", port = 6379L, backend = .redis_NULL(),
+        hostname = NA_character_, port = NA_integer_, backend = .redis_NULL(),
         is.worker = NA
     )
 )
@@ -28,8 +28,8 @@ setOldClass(c("redis_NULL", "redis_manager"))
         show = function() {
             callSuper()
             cat(
-                "  hostname: ", .redis_host(.self), "\n",
-                "  port: ", .redis_port(.self), "\n",
+                "  hostname: ", .redis_host(.self),
+                "; port: ", .redis_port(.self), "\n",
                 "  is.worker: ", .redis_isworker(.self), "\n",
                 sep = "")
         }
@@ -56,7 +56,11 @@ setOldClass(c("redis_NULL", "redis_manager"))
 #'     .close,redis_worker-method .send_to,redis_manager-method
 #'     .recv_any,redis_manager-method
 #'
-#' @param workers See BiocParalleParam-class.
+#' @param workers integer(1) number of redis workers. For `is.worker
+#'     = FALSE`, this parameter is the maximum number of workers
+#'     expected to be available. For `is.worker = NA`, this is the
+#'     number of workers opened by `bpstart()`.
+#'
 #' @param tasks See BiocParalleParam-class.
 #' @param log See BiocParalleParam-class.
 #' @param logdir See BiocParalleParam-class.
@@ -71,9 +75,12 @@ setOldClass(c("redis_NULL", "redis_manager"))
 #' @param jobname character(1) name (unique) used to associate manager
 #'     & workers on a queue.
 #'
-#' @param manager.hostname character(1) host name of redis server.
+#' @param manager.hostname character(1) host name of redis server,
+#'     from system environment variable `REDIS_HOST` or, by default,
+#'     `"127.0.0.1"`.
 #'
-#' @param manager.port integer(1) port of redis server.
+#' @param manager.port integer(1) port of redis server, from system
+#'     environment variable `REDIS_PORT` or, by default, 6379.
 #'
 #' @param is.worker logical(1) \code{bpstart()} creates worker-only
 #'     (\code{TRUE}), manager-only (\code{FALSE}), or manager and
@@ -98,16 +105,17 @@ setOldClass(c("redis_NULL", "redis_manager"))
 #'
 #' @export
 RedisParam <-
-    function(workers = snowWorkers(), tasks = 0L, jobname = ipcid(),
+    function(workers = rpworkers(is.worker), tasks = 0L, jobname = ipcid(),
              log = FALSE, logdir = NA, threshold = "INFO",
              resultdir = NA_character_, stop.on.error= TRUE,
              timeout = 2592000L, exportglobals= TRUE,
              progressbar = FALSE, RNGseed = NULL,
-             manager.hostname = "127.0.0.1", manager.port = 6379L,
+             manager.hostname = rphost(), manager.port = rpport(),
              is.worker = NA)
 {
     if (!is.null(RNGseed))
         RNGseed <- as.integer(RNGseed)
+
     prototype <- .prototype_update(
         .RedisParam_prototype,
         workers = as.integer(workers),
@@ -127,6 +135,53 @@ RedisParam <-
         is.worker = as.logical(is.worker)
     )
     do.call(.RedisParam, prototype)
+}
+
+
+#' @rdname RedisParam
+#'
+#' @details `rpworkers()` determines the number of workers using
+#'     `snowWorkers()` if workers are created dynamically, or a fixed
+#'     maximum (currently 1000) if workers are listening on a queue.
+#'
+#'     `rphost()` reads the host name of the redis server from a
+#'     system environment variable `"REDIS_HOST"`, defaulting to
+#'     `"127.0.0.1"`
+#'
+#'     `rpport()` reads the port of the redis server from a system
+#'     environment variable `"REDIS_PORT"`, defaulting to 6379.
+#'
+#' @export
+rpworkers <-
+    function(is.worker)
+{
+    stopifnot(is.logical(is.worker), length(is.worker) == 1L)
+    if (is.na(is.worker)) {
+        snowWorkers()
+    } else if (is.worker) {
+        1L
+    } else {
+        ## a large number -- up to 1000 listening on the queue
+        1000L
+    }
+}
+
+#' @rdname RedisParam
+#'
+#' @export
+rphost <-
+    function()
+{
+    Sys.getenv("REDIS_HOST", "127.0.0.1")
+}
+
+#' @rdname RedisParam
+#'
+#' @export
+rpport <-
+    function()
+{
+    as.integer(Sys.getenv("REDIS_PORT", 6379))
 }
 
 #' @importFrom redux hiredis
