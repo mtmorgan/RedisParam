@@ -56,7 +56,7 @@ setOldClass(c("redis_NULL", "redis_manager"))
 #'     .close,redis_worker-method .send_to,redis_manager-method
 #'     .recv_any,redis_manager-method
 #'
-#' @param workers integer(1) number of redis workers. For `is.worker
+#' @param workers integer(1) number of redis workers. For `is.worker
 #'     = FALSE`, this parameter is the maximum number of workers
 #'     expected to be available. For `is.worker = NA`, this is the
 #'     number of workers opened by `bpstart()`.
@@ -259,7 +259,12 @@ setMethod(
 length.redis_manager <-
     function(x)
 {
-    x$length
+    if (inherits(x, "redis_NULL")) {
+        0L
+    } else {
+        clients <- x$redis$CLIENT_LIST()
+        length(gregexpr("\n", clients)[[1]]) - 1L
+    }
 }
 
 #' @importFrom redux redis_available hiredis
@@ -371,12 +376,20 @@ setMethod(
     if (isTRUE(worker)) {
         stop("use 'bpstopall()' from manager, not worker")
     } else {
-        stop("'bpstopall' not yet implemented")
         ## FIXME: how many signals to send?
-        redis <- bpbackend(x)$redis
         .bpstop_impl(x)                 # send 'DONE' to all workers
         .redis_set_backend(x, .redis_NULL())
     }
     gc()
     x
+})
+
+#' @rdname RedisParam
+#'
+#' @export
+setMethod(
+    "bpworkers", "RedisParam",
+    function(x)
+{
+    length(bpbackend(x))
 })

@@ -1,6 +1,6 @@
 Package: RedisParam
 Title: Provide a 'redis' back-end for BiocParallel
-Version: 0.0.1
+Version: 0.0.2
 Authors@R:
     person(
         "Martin", "Morgan",
@@ -14,6 +14,6 @@ Imports: methods, redux
 License: Artistic-2.0
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 6.1.1
+RoxygenNote: 7.1.1
 Suggests: 
     testthat
