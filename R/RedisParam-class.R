@@ -50,7 +50,9 @@ setOldClass(c("redis_NULL", "redis_manager"))
 .redis_isworker <- function(x)
     x$is.worker
 
-#' Enable redis-based parallel evaluation in BiocParallel
+#' @rdname RedisParam-class
+#'
+#' @title Enable redis-based parallel evaluation in BiocParallel
 #'
 #' @aliases .send,redis_worker-method .recv,redis_worker-method
 #'     .close,redis_worker-method .send_to,redis_manager-method
@@ -89,19 +91,31 @@ setOldClass(c("redis_NULL", "redis_manager"))
 #' @details Use an instance of `RedisParam()` for interactive parallel
 #'     evaluation using `bplapply()` or `bpiterate()`. `RedisParam()`
 #'     requires access to a redis server, running on
-#'     `manager.hostname` (e.g., 127.0.0.1) on `manager.port` (e.g.,
-#'     6379). `bplapply()` and `bpiterate()` will start and stop redis
-#'     workers.
+#'     `manager.hostname` (e.g., 127.0.0.1) at `manager.port` (e.g.,
+#'     6379). The manager and workers communicate via the redis
+#'     server, rather than the socket connections used by other
+#'     BiocParallel back-ends.
 #'
-#'     It may be convenient to use `bpstart()` and `bpstop()`
-#'     independently, to amortize the cost of worker start-up across
-#'     multiple calls to `bplapply()` / `bpiterate()`.
+#'     When invoked with `is.worker = NA` (the default) `bpstart()`,
+#'     `bplapply()` and `bpiterate()` start and stop redis workers on
+#'     the local computer. It may be convenient to use `bpstart()`
+#'     and `bpstop()` independently, to amortize the cost of worker
+#'     start-up across multiple calls to `bplapply()` / `bpiterate()`.
+#'
+#'     Alternatively, a manager and one or more workers can each be
+#'     started in different processes across a network. The manager is
+#'     started, e.g., in an interactive session, by specifying
+#'     `is.worker = FALSE`. Wokrers are started, typically as
+#'     background processes, with `is.worker = TRUE`. Both manager and
+#'     workers must specify the same value for `jobname =`, the redis
+#'     key used for communication. In this scenario, workers can be
+#'     added at any time, including during e.g., `bplapply()`
+#'     evaluation on the manager. See the vignette for possible
+#'     scenarios.
 #'
 #' @examples
-#' if (requireNamespace("redux")) {
-#'     res <- bplapply(1:20, function(i) Sys.getpid(), BPPARAM = RedisParam())
-#'     table(unlist(res))
-#' }
+#' res <- bplapply(1:20, function(i) Sys.getpid(), BPPARAM = RedisParam())
+#' table(unlist(res))
 #'
 #' @export
 RedisParam <-
@@ -138,7 +152,7 @@ RedisParam <-
 }
 
 
-#' @rdname RedisParam
+#' @rdname RedisParam-class
 #'
 #' @details `rpworkers()` determines the number of workers using
 #'     `snowWorkers()` if workers are created dynamically, or a fixed
@@ -166,7 +180,7 @@ rpworkers <-
     }
 }
 
-#' @rdname RedisParam
+#' @rdname RedisParam-class
 #'
 #' @export
 rphost <-
@@ -175,7 +189,7 @@ rphost <-
     Sys.getenv("REDIS_HOST", "127.0.0.1")
 }
 
-#' @rdname RedisParam
+#' @rdname RedisParam-class
 #'
 #' @export
 rpport <-
@@ -307,7 +321,7 @@ length.redis_manager <-
         system2(rscript, script, wait = FALSE)
 }
 
-#' @rdname RedisParam
+#' @rdname RedisParam-class
 #'
 #' @param x A `RedisParam` instance.
 #' @export
@@ -318,12 +332,12 @@ setMethod(
     !identical(bpbackend(x), .redis_NULL())
 })
 
-#' @rdname RedisParam
+#' @rdname RedisParam-class
 #'
 #' @export
 setMethod("bpbackend", "RedisParam", .redis_backend)
 
-#' @rdname RedisParam
+#' @rdname RedisParam-class
 #'
 #' @param \dots ignored.
 #'
@@ -348,7 +362,7 @@ setMethod(
     }
 })
 
-#' @rdname RedisParam
+#' @rdname RedisParam-class
 #'
 #' @export
 setMethod(
@@ -371,12 +385,37 @@ setMethod(
     x
 })
 
-#' @rdname RedisParam
+#' @rdname RedisParam-class
 #'
 #' @export
 setGeneric("bpstopall", function(x) standardGeneric("bpstopall"))
 
-#' @rdname RedisParam
+#' @rdname RedisParam-class
+#'
+#' @details `bpstopall()` is used from the manager to stop redis
+#'     workers launched independently, with `is.worker = TRUE`.
+#'
+#' @examples
+#' \dontrun{
+#' ## start workers in background proocess(es)
+#' rscript <- R.home("bin/Rscript")
+#' worker_script <- tempfile()
+#' writeLines(c(
+#'     'worker <- RedisParam::RedisParam(jobname = "demo", is.worker = TRUE)',
+#'     'RedisParam::bpstart(worker)'
+#' ), worker_script)
+#'
+#' for (i in seq_len(2))
+#'     system2(rscript, worker_script, wait = FALSE)
+#'
+#' ## start manager
+#' p <- RedisParam(jobname = "demo", is.worker = FALSE)
+#' result <- bplapply(1:5, function(i) Sys.getpid(), BPPARAM = p)
+#' table(unlist(result))
+#'
+#' ## stop all workers
+#' bpstopall(p)
+#' }
 #'
 #' @export
 setMethod(
@@ -397,7 +436,7 @@ setMethod(
     x
 })
 
-#' @rdname RedisParam
+#' @rdname RedisParam-class
 #'
 #' @export
 setMethod(
