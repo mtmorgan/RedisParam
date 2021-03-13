@@ -203,10 +203,13 @@ rpport <-
             "  ", conditionMessage(e)
         )
     })
+    redis$CLIENT_SETNAME(paste0(jobname, "-", class))
     structure(
         list(
             redis = redis,
-            job_queue = job_queue, result_queue = result_queue,
+            jobname = jobname,
+            job_queue = job_queue,
+            result_queue = result_queue,
             timeout = timeout, length = length
         ),
         class = class
@@ -262,8 +265,10 @@ length.redis_manager <-
     if (inherits(x, "redis_NULL")) {
         0L
     } else {
+        name <- paste0(x$jobname, "-redis_worker")
+        worker_query <- sprintf(" name=%s ", name)
         clients <- x$redis$CLIENT_LIST()
-        length(gregexpr("\n", clients)[[1]]) - 1L
+        length(gregexpr(worker_query, clients)[[1]])
     }
 }
 
@@ -272,7 +277,7 @@ length.redis_manager <-
     function(x)
 {
     redis <- .redis(x, "redis_manager")
-    .redis_set_backend(x, redis)
+    x <- .redis_set_backend(x, redis)
 }
 
 .bpstart_redis_worker_only <-
@@ -391,5 +396,9 @@ setMethod(
     "bpworkers", "RedisParam",
     function(x)
 {
-    length(bpbackend(x))
+    if (is.na(.redis_isworker(x))) {
+        x$workers
+    } else {
+        length(bpbackend(x))
+    }
 })
