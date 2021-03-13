@@ -291,12 +291,20 @@ length.redis_manager <-
 .bpstart_redis_worker_multicore <-
     function(x)
 {
-    for (i in seq_len(bpnworkers(x))) {
-        mcparallel({
-            worker <- .redis(x, "redis_worker")
-            .bpworker_impl(worker)
-        }, detached = TRUE)
-    }
+    old_redisparam_jobname <- Sys.getenv("REDISPARAM_JOBNAME")
+    Sys.setenv(REDISPARAM_JOBNAME = bpjobname(x))
+    on.exit({
+        if (nzchar(old_redisparam_jobname)) {
+            Sys.setenv(REDISPARAM_JOBNAME = old_redisparam_jobname)
+        } else {
+            Sys.unsetenv("REDISPARAM_JOBNAME")
+        }
+    })
+
+    rscript <- R.home("bin/Rscript")
+    script <- system.file(package="RedisParam", "script", "worker_start.R")
+    for (i in seq_len(bpnworkers(x)))
+        system2(rscript, script, wait = FALSE)
 }
 
 #' @rdname RedisParam
@@ -376,12 +384,12 @@ setMethod(
     function(x)
 {
     if (!bpisup(x))
-        stop("'bpstopall()' requires 'bpisup()' to be TRUE")
+        return(x)
+
     worker <- .redis_isworker(x)
     if (isTRUE(worker)) {
         stop("use 'bpstopall()' from manager, not worker")
     } else {
-        ## FIXME: how many signals to send?
         .bpstop_impl(x)                 # send 'DONE' to all workers
         .redis_set_backend(x, .redis_NULL())
     }
