@@ -11,7 +11,7 @@ setOldClass(c("redis_NULL", "redis_manager"))
 .RedisParam_prototype <- c(
     .BiocParallelParam_prototype,
     list(
-        hostname = NA_character_, port = NA_integer_, backend = .redis_NULL(),
+        hostname = NA_character_, port = NA_integer_, password = NULL, backend = .redis_NULL(),
         is.worker = NA
     )
 )
@@ -39,6 +39,8 @@ setOldClass(c("redis_NULL", "redis_manager"))
 .redis_host <- function(x) x$hostname
 
 .redis_port <- function(x) x$port
+
+.redis_password <- function(x) x$password
 
 .redis_backend <- function(x) x$backend
 
@@ -84,6 +86,8 @@ setOldClass(c("redis_NULL", "redis_manager"))
 #' @param manager.port integer(1) port of redis server, from system
 #'     environment variable `REDIS_PORT` or, by default, 6379.
 #'
+#' @param manager.password character(1) host password of redis server.
+#'
 #' @param is.worker logical(1) \code{bpstart()} creates worker-only
 #'     (\code{TRUE}), manager-only (\code{FALSE}), or manager and
 #'     worker (\code{NA}, default) connections.
@@ -125,6 +129,7 @@ RedisParam <-
              timeout = 2592000L, exportglobals= TRUE,
              progressbar = FALSE, RNGseed = NULL,
              manager.hostname = rphost(), manager.port = rpport(),
+             manager.password = NULL,
              is.worker = NA)
 {
     if (!is.null(RNGseed))
@@ -146,6 +151,7 @@ RedisParam <-
         RNGseed = RNGseed,
         hostname = as.character(manager.hostname),
         port = as.integer(manager.port),
+        password = manager.password,
         is.worker = as.logical(is.worker)
     )
     do.call(.RedisParam, prototype)
@@ -204,13 +210,14 @@ rpport <-
 {
     host <- .redis_host(x)
     port <- .redis_port(x)
+    password <- .redis_password(x)
     jobname <- bpjobname(x)
     job_queue <- paste0("biocparallel_redis_job:", jobname)
     result_queue <- paste0("biocparallel_redis_result:", jobname)
     timeout <- bptimeout(x)
     length <- bpnworkers(x)
     redis <- tryCatch({
-        hiredis(host = host, port = port)
+        hiredis(host = host, port = port, password = password)
     }, error = function(e) {
         stop(
             "'redis' not available:\n",
