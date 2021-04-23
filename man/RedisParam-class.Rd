@@ -34,6 +34,7 @@ RedisParam(
   RNGseed = NULL,
   manager.hostname = rphost(),
   manager.port = rpport(),
+  manager.password = "",
   is.worker = NA
 )
 
@@ -92,6 +93,8 @@ from system environment variable `REDIS_HOST` or, by default,
 
 \item{manager.port}{integer(1) port of redis server, from system
 environment variable `REDIS_PORT` or, by default, 6379.}
+
+\item{manager.password}{character(1) host password of redis server.}
 
 \item{is.worker}{logical(1) \code{bpstart()} creates worker-only
 (\code{TRUE}), manager-only (\code{FALSE}), or manager and
