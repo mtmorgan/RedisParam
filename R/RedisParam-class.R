@@ -21,7 +21,7 @@ setOldClass(c("redis_NULL", "redis_manager"))
     "RedisParam",
     contains = "BiocParallelParam",
     fields = c(
-        hostname = "character", port = "integer", backend = "redis_manager",
+        hostname = "character", port = "integer", password = "character", backend = "redis_manager",
         is.worker = "logical"
     ),
     methods = list(
@@ -40,7 +40,12 @@ setOldClass(c("redis_NULL", "redis_manager"))
 
 .redis_port <- function(x) x$port
 
-.redis_password <- function(x) x$password
+.redis_password <- function(x) {
+    if(x$password=="")
+        NULL
+    else
+        x$password
+}
 
 .redis_backend <- function(x) x$backend
 
@@ -129,7 +134,7 @@ RedisParam <-
              timeout = 2592000L, exportglobals= TRUE,
              progressbar = FALSE, RNGseed = NULL,
              manager.hostname = rphost(), manager.port = rpport(),
-             manager.password = NULL,
+             manager.password = "",
              is.worker = NA)
 {
     if (!is.null(RNGseed))
@@ -151,7 +156,7 @@ RedisParam <-
         RNGseed = RNGseed,
         hostname = as.character(manager.hostname),
         port = as.integer(manager.port),
-        password = manager.password,
+        password = as.character(manager.password),
         is.worker = as.logical(is.worker)
     )
     do.call(.RedisParam, prototype)
