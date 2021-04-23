@@ -313,13 +313,9 @@ length.redis_manager <-
     .bpworker_impl(worker)              # blocking
 }
 
-#' @import parallel
 .bpstart_redis_worker_multicore <-
     function(x)
 {
-    if(!"mcparallel" %in%names(getNamespace("parallel"))){
-        stop("The mcparallel does not exist in the parallel package")
-    }
     old_redisparam_jobname <- Sys.getenv("REDISPARAM_JOBNAME")
     Sys.setenv(REDISPARAM_JOBNAME = bpjobname(x))
     on.exit({
