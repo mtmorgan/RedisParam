@@ -11,7 +11,7 @@ setOldClass(c("redis_NULL", "redis_manager"))
 .RedisParam_prototype <- c(
     .BiocParallelParam_prototype,
     list(
-        hostname = NA_character_, port = NA_integer_, password = NULL, backend = .redis_NULL(),
+        hostname = NA_character_, port = NA_integer_, password = "", backend = .redis_NULL(),
         is.worker = NA
     )
 )
