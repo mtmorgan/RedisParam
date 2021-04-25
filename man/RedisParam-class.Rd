@@ -10,6 +10,7 @@
 \alias{rpworkers}
 \alias{rphost}
 \alias{rpport}
+\alias{rppassword}
 \alias{bpisup,RedisParam-method}
 \alias{bpbackend,RedisParam-method}
 \alias{bpstart,RedisParam-method}
@@ -34,7 +35,7 @@ RedisParam(
   RNGseed = NULL,
   manager.hostname = rphost(),
   manager.port = rpport(),
-  manager.password = "",
+  manager.password = rppassword(),
   is.worker = NA
 )
 
@@ -43,6 +44,8 @@ rpworkers(is.worker)
 rphost()
 
 rpport()
+
+rppassword()
 
 \S4method{bpisup}{RedisParam}(x)
 
@@ -94,7 +97,8 @@ from system environment variable `REDIS_HOST` or, by default,
 \item{manager.port}{integer(1) port of redis server, from system
 environment variable `REDIS_PORT` or, by default, 6379.}
 
-\item{manager.password}{character(1) host password of redis server.}
+\item{manager.password}{character(1) host password of redis server
+or, by default, `NA_character_` (no password).}
 
 \item{is.worker}{logical(1) \code{bpstart()} creates worker-only
 (\code{TRUE}), manager-only (\code{FALSE}), or manager and
@@ -143,6 +147,11 @@ Use an instance of `RedisParam()` for interactive parallel
 
     `rpport()` reads the port of the redis server from a system
     environment variable `"REDIS_PORT"`, defaulting to 6379.
+
+    `rppassword()` reads an (optional) password from the system
+    environment variable "REDIS_PASSWORD", defaulting to
+    `NA_character_` (no password). The password is used by the
+    redis AUTH command.
 
 `bpstopall()` is used from the manager to stop redis
     workers launched independently, with `is.worker = TRUE`.

@@ -11,8 +11,8 @@ setOldClass(c("redis_NULL", "redis_manager"))
 .RedisParam_prototype <- c(
     .BiocParallelParam_prototype,
     list(
-        hostname = NA_character_, port = NA_integer_, password = "", backend = .redis_NULL(),
-        is.worker = NA
+        hostname = NA_character_, port = NA_integer_, password = NA_character_,
+        backend = .redis_NULL(), is.worker = NA
     )
 )
 
@@ -21,16 +21,20 @@ setOldClass(c("redis_NULL", "redis_manager"))
     "RedisParam",
     contains = "BiocParallelParam",
     fields = c(
-        hostname = "character", port = "integer", password = "character", backend = "redis_manager",
-        is.worker = "logical"
+        hostname = "character", port = "integer", password = "character",
+        backend = "redis_manager", is.worker = "logical"
     ),
     methods = list(
         show = function() {
             callSuper()
+            .password <- "*****"
+            if (is.null(.redis_password(.self)))
+                .password <- NA_character_
             cat(
-                "  hostname: ", .redis_host(.self),
-                "; port: ", .redis_port(.self), "\n",
-                "  is.worker: ", .redis_isworker(.self), "\n",
+                "  hostname: ", .redis_host(.self), "\n",
+                "  port: ", .redis_port(.self),
+                "; password: ", .password,
+                "; is.worker: ", .redis_isworker(.self), "\n",
                 sep = "")
         }
     )
@@ -41,10 +45,12 @@ setOldClass(c("redis_NULL", "redis_manager"))
 .redis_port <- function(x) x$port
 
 .redis_password <- function(x) {
-    if(x$password=="")
+    password <- x$password
+    if (is.na(password)) {
         NULL
-    else
-        x$password
+    } else {
+        password
+    }
 }
 
 .redis_backend <- function(x) x$backend
@@ -91,7 +97,8 @@ setOldClass(c("redis_NULL", "redis_manager"))
 #' @param manager.port integer(1) port of redis server, from system
 #'     environment variable `REDIS_PORT` or, by default, 6379.
 #'
-#' @param manager.password character(1) host password of redis server.
+#' @param manager.password character(1) host password of redis server
+#'     or, by default, `NA_character_` (no password).
 #'
 #' @param is.worker logical(1) \code{bpstart()} creates worker-only
 #'     (\code{TRUE}), manager-only (\code{FALSE}), or manager and
@@ -134,7 +141,7 @@ RedisParam <-
              timeout = 2592000L, exportglobals= TRUE,
              progressbar = FALSE, RNGseed = NULL,
              manager.hostname = rphost(), manager.port = rpport(),
-             manager.password = "",
+             manager.password = rppassword(),
              is.worker = NA)
 {
     if (!is.null(RNGseed))
@@ -176,6 +183,11 @@ RedisParam <-
 #'     `rpport()` reads the port of the redis server from a system
 #'     environment variable `"REDIS_PORT"`, defaulting to 6379.
 #'
+#'     `rppassword()` reads an (optional) password from the system
+#'     environment variable "REDIS_PASSWORD", defaulting to
+#'     `NA_character_` (no password). The password is used by the
+#'     redis AUTH command.
+#'
 #' @export
 rpworkers <-
     function(is.worker)
@@ -207,6 +219,15 @@ rpport <-
     function()
 {
     as.integer(Sys.getenv("REDIS_PORT", 6379))
+}
+
+#' @rdname RedisParam-class
+#'
+#' @export
+rppassword <-
+    function()
+{
+    Sys.getenv("REDIS_PASSWORD",  NA_character_)
 }
 
 #' @importFrom redux hiredis
