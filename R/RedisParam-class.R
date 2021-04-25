@@ -11,8 +11,8 @@ setOldClass(c("redis_NULL", "redis_manager"))
 .RedisParam_prototype <- c(
     .BiocParallelParam_prototype,
     list(
-        hostname = NA_character_, port = NA_integer_, backend = .redis_NULL(),
-        is.worker = NA
+        hostname = NA_character_, port = NA_integer_, password = NA_character_,
+        backend = .redis_NULL(), is.worker = NA
     )
 )
 
@@ -21,16 +21,20 @@ setOldClass(c("redis_NULL", "redis_manager"))
     "RedisParam",
     contains = "BiocParallelParam",
     fields = c(
-        hostname = "character", port = "integer", backend = "redis_manager",
-        is.worker = "logical"
+        hostname = "character", port = "integer", password = "character",
+        backend = "redis_manager", is.worker = "logical"
     ),
     methods = list(
         show = function() {
             callSuper()
+            .password <- "*****"
+            if (is.null(.redis_password(.self)))
+                .password <- NA_character_
             cat(
-                "  hostname: ", .redis_host(.self),
-                "; port: ", .redis_port(.self), "\n",
-                "  is.worker: ", .redis_isworker(.self), "\n",
+                "  hostname: ", .redis_host(.self), "\n",
+                "  port: ", .redis_port(.self),
+                "; password: ", .password,
+                "; is.worker: ", .redis_isworker(.self), "\n",
                 sep = "")
         }
     )
@@ -39,6 +43,15 @@ setOldClass(c("redis_NULL", "redis_manager"))
 .redis_host <- function(x) x$hostname
 
 .redis_port <- function(x) x$port
+
+.redis_password <- function(x) {
+    password <- x$password
+    if (is.na(password)) {
+        NULL
+    } else {
+        password
+    }
+}
 
 .redis_backend <- function(x) x$backend
 
@@ -84,6 +97,9 @@ setOldClass(c("redis_NULL", "redis_manager"))
 #' @param manager.port integer(1) port of redis server, from system
 #'     environment variable `REDIS_PORT` or, by default, 6379.
 #'
+#' @param manager.password character(1) host password of redis server
+#'     or, by default, `NA_character_` (no password).
+#'
 #' @param is.worker logical(1) \code{bpstart()} creates worker-only
 #'     (\code{TRUE}), manager-only (\code{FALSE}), or manager and
 #'     worker (\code{NA}, default) connections.
@@ -125,6 +141,7 @@ RedisParam <-
              timeout = 2592000L, exportglobals= TRUE,
              progressbar = FALSE, RNGseed = NULL,
              manager.hostname = rphost(), manager.port = rpport(),
+             manager.password = rppassword(),
              is.worker = NA)
 {
     if (!is.null(RNGseed))
@@ -146,6 +163,7 @@ RedisParam <-
         RNGseed = RNGseed,
         hostname = as.character(manager.hostname),
         port = as.integer(manager.port),
+        password = as.character(manager.password),
         is.worker = as.logical(is.worker)
     )
     do.call(.RedisParam, prototype)
@@ -164,6 +182,11 @@ RedisParam <-
 #'
 #'     `rpport()` reads the port of the redis server from a system
 #'     environment variable `"REDIS_PORT"`, defaulting to 6379.
+#'
+#'     `rppassword()` reads an (optional) password from the system
+#'     environment variable "REDIS_PASSWORD", defaulting to
+#'     `NA_character_` (no password). The password is used by the
+#'     redis AUTH command.
 #'
 #' @export
 rpworkers <-
@@ -198,19 +221,29 @@ rpport <-
     as.integer(Sys.getenv("REDIS_PORT", 6379))
 }
 
+#' @rdname RedisParam-class
+#'
+#' @export
+rppassword <-
+    function()
+{
+    Sys.getenv("REDIS_PASSWORD",  NA_character_)
+}
+
 #' @importFrom redux hiredis
 .redis <-
     function(x, class)
 {
     host <- .redis_host(x)
     port <- .redis_port(x)
+    password <- .redis_password(x)
     jobname <- bpjobname(x)
     job_queue <- paste0("biocparallel_redis_job:", jobname)
     result_queue <- paste0("biocparallel_redis_result:", jobname)
     timeout <- bptimeout(x)
     length <- bpnworkers(x)
     redis <- tryCatch({
-        hiredis(host = host, port = port)
+        hiredis(host = host, port = port, password = password)
     }, error = function(e) {
         stop(
             "'redis' not available:\n",
@@ -301,7 +334,6 @@ length.redis_manager <-
     .bpworker_impl(worker)              # blocking
 }
 
-#' @importFrom parallel mcparallel
 .bpstart_redis_worker_multicore <-
     function(x)
 {
