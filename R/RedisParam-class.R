@@ -121,7 +121,7 @@ setOldClass(c("redis_NULL", "redis_manager"))
 #'     Alternatively, a manager and one or more workers can each be
 #'     started in different processes across a network. The manager is
 #'     started, e.g., in an interactive session, by specifying
-#'     `is.worker = FALSE`. Wokrers are started, typically as
+#'     `is.worker = FALSE`. Workers are started, typically as
 #'     background processes, with `is.worker = TRUE`. Both manager and
 #'     workers must specify the same value for `jobname =`, the redis
 #'     key used for communication. In this scenario, workers can be
@@ -334,7 +334,8 @@ length.redis_manager <-
     .bpworker_impl(worker)              # blocking
 }
 
-.bpstart_redis_worker_multicore <-
+
+.bpstart_redis_worker_in_background <-
     function(x)
 {
     old_redisparam_jobname <- Sys.getenv("REDISPARAM_JOBNAME")
@@ -350,7 +351,7 @@ length.redis_manager <-
     rscript <- R.home("bin/Rscript")
     script <- system.file(package="RedisParam", "script", "worker_start.R")
     for (i in seq_len(bpnworkers(x)))
-        system2(rscript, script, wait = FALSE)
+        system2(rscript, shQuote(script), wait = FALSE)
 }
 
 #' @rdname RedisParam-class
@@ -389,7 +390,7 @@ setMethod(
     } else {
         ## worker & manager
         .bpstart_redis_manager(x)
-        .bpstart_redis_worker_multicore(x)
+        .bpstart_redis_worker_in_background(x)
         .bpstart_impl(x)
     }
 })
