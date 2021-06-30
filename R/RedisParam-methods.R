@@ -44,26 +44,16 @@
             REDISPARAM_PORT = .redis_port(x),
             REDISPARAM_JOBNAME = bpjobname(x)
         )
-        old_env <- lapply(names(worker_env), Sys.getenv)
-        names(old_env) <- names(worker_env)
-
-        ## Remove the null element
         worker_env <- worker_env[!vapply(worker_env, is.null, logical(1))]
-        old_env <- old_env[!vapply(old_env, is.null, logical(1))]
-
-        do.call(Sys.setenv, args = worker_env)
-        ## Reset the environment variable on exit
-        on.exit({
-            Sys.unsetenv(names(old_env))
-            args <- as.list(old_env[nzchar(old_env)])
-            if(length(args))
-                do.call(Sys.setenv, args = args)
+        withr::with_envvar(
+            worker_env
+            ,{
+            rscript <- R.home("bin/Rscript")
+            script <- system.file(package="RedisParam", "script", "worker_start.R")
+            for (i in seq_len(bpnworkers(x)))
+                system2(rscript, shQuote(script), wait = FALSE)
         })
 
-        rscript <- R.home("bin/Rscript")
-        script <- system.file(package="RedisParam", "script", "worker_start.R")
-        for (i in seq_len(bpnworkers(x)))
-            system2(rscript, shQuote(script), wait = FALSE)
     }
 
 #' @rdname RedisParam-class
@@ -91,20 +81,23 @@ setMethod(
     "bpstart", "RedisParam",
     function(x, ...)
     {
-        worker <- .redis_isworker(x)
-        if (isTRUE(worker)) {
-            ## worker only
-            .bpstart_redis_worker_only(x)
-        } else if (isFALSE(worker)) {
-            ## manager only
-            .bpstart_redis_manager(x)
-            .bpstart_impl(x)
-        } else {
-            ## worker & manager
-            .bpstart_redis_manager(x)
-            .bpstart_redis_worker_in_background(x)
-            .bpstart_impl(x)
+        if(!bpisup(x)){
+            worker <- .redis_isworker(x)
+            if (isTRUE(worker)) {
+                ## worker only
+                .bpstart_redis_worker_only(x)
+            } else if (isFALSE(worker)) {
+                ## manager only
+                .bpstart_redis_manager(x)
+                .bpstart_impl(x)
+            } else {
+                ## worker & manager
+                .bpstart_redis_manager(x)
+                .bpstart_redis_worker_in_background(x)
+                .bpstart_impl(x)
+            }
         }
+        TRUE
     })
 
 #' @rdname RedisParam-class
@@ -127,7 +120,7 @@ setMethod(
             x <- .redis_set_backend(x, .redis_NULL)
         }
         gc()                                # close connections
-        x
+        TRUE
     })
 
 #' @rdname RedisParam-class
