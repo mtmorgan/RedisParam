@@ -35,7 +35,6 @@
         .bpworker_impl(worker)              # blocking
     }
 
-
 .bpstart_redis_worker_in_background <-
     function(x)
     {

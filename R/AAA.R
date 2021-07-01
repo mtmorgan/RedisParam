@@ -1,6 +1,5 @@
 ## A thin wrapper for the redux package
 ## We may remove the redux dependence in future
-#' @importFrom redux redis_available hiredis
 .RedisBackend <- setRefClass(
     "RedisBackend",
     fields = c(
@@ -14,7 +13,6 @@
 )
 
 
-#' @import methods BiocParallel
 .RedisParam <- setRefClass(
     "RedisParam",
     contains = "BiocParallelParam",

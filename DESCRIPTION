@@ -10,11 +10,14 @@ Authors@R:
 Description: This package provides a redis-based back-end for BiocParallel,
     enabling an alternative, modern mechanism for distributed computation.
 Depends: R (>= 3.6.0), BiocParallel
-Imports: methods, redux
+Imports: 
+    methods, 
+    redux,
+    withr
 License: Artistic-2.0
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.1.1
 Suggests: 
-    testthat,
-    withr
+    testthat
+    

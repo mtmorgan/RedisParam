@@ -17,7 +17,7 @@ test_that("RedisParam constructor works", {
 
 
 test_that("RedisParam local workers", {
-    ## Check if the redis server exists
+    ## We only do the test if Redis is running
     p <- RedisParam()
     redisAlive <- tryCatch({
         hiredis(host = .redis_host(p),
