@@ -226,20 +226,7 @@ setMethod(
     }
 )
 
-#' @rdname RedisParam-class
-#'
-#' @export
-setMethod(
-    "bpworkers", "RedisParam",
-    function(x)
-    {
-        if (is.na(rpisworker(x))) {
-            x$workers
-        } else {
-            length(bpbackend(x))
-        }
-    }
-)
+
 
 
 
