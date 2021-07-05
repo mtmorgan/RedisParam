@@ -20,28 +20,28 @@
 #'     expected to be available. For `is.worker = NA`, this is the
 #'     number of workers opened by `bpstart()`.
 #'
-#' @param tasks See BiocParalleParam-class.
-#' @param log See BiocParalleParam-class.
-#' @param logdir See BiocParalleParam-class.
-#' @param threshold See BiocParalleParam-class.
-#' @param resultdir See BiocParalleParam-class.
-#' @param stop.on.error See BiocParalleParam-class.
-#' @param timeout See BiocParalleParam-class.
-#' @param exportglobals See BiocParalleParam-class.
-#' @param progressbar See BiocParalleParam-class.
-#' @param RNGseed See BiocParalleParam-class.
+#' @param tasks See `?"BiocParallelParam-class"`.
+#' @param log See `?"BiocParallelParam-class"`.
+#' @param logdir See `?"BiocParallelParam-class"`.
+#' @param threshold See `?"BiocParallelParam-class"`.
+#' @param resultdir See `?"BiocParallelParam-class"`.
+#' @param stop.on.error See `?"BiocParallelParam-class"`.
+#' @param timeout See `?"BiocParallelParam-class"`.
+#' @param exportglobals See `?"BiocParallelParam-class"`.
+#' @param progressbar See `?"BiocParallelParam-class"`.
+#' @param RNGseed See `?"BiocParallelParam-class"`.
 #'
 #' @param jobname character(1) name (unique) used to associate manager
 #'     & workers on a queue.
 #'
-#' @param manager.hostname character(1) host name of redis server,
+#' @param redis.hostname character(1) host name of redis server,
 #'     from system environment variable `REDIS_HOST` or, by default,
 #'     `"127.0.0.1"`.
 #'
-#' @param manager.port integer(1) port of redis server, from system
+#' @param redis.port integer(1) port of redis server, from system
 #'     environment variable `REDIS_PORT` or, by default, 6379.
 #'
-#' @param manager.password character(1) or NULL, host password of redis server
+#' @param redis.password character(1) or NULL, host password of redis server
 #'     or, by default, `NA_character_` (no password).
 #'
 #' @param is.worker logical(1) \code{bpstart()} creates worker-only
@@ -84,8 +84,8 @@ RedisParam <- function(
     resultdir = NA_character_, stop.on.error= TRUE,
     timeout = 2592000L, exportglobals= TRUE,
     progressbar = FALSE, RNGseed = NULL,
-    manager.hostname = rphost(), manager.port = rpport(),
-    manager.password = rppassword(),
+    redis.hostname = rphost(), redis.port = rpport(),
+    redis.password = rppassword(),
     is.worker = NA)
 {
     if (!is.null(RNGseed))
@@ -114,9 +114,7 @@ RedisParam <- function(
         is.worker = as.logical(is.worker)
     )
     x <- do.call(.RedisParam, prototype)
-    if(log){
-        enable.log(x)
-    }
+    config.logger(x)
     x
 }
 

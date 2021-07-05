@@ -1,3 +1,58 @@
+#########################
+# internal functions
+#########################
+.bpstart_redis_manager <- function(x)
+{
+    .info(x, "Setting the Redis manager backend")
+    redis <- RedisBackend(RedisParam = x, type = "manager")
+    x <- .set.backend(x, redis)
+}
+
+.bpstart_redis_worker_only <- function(x)
+{
+    .info(x, "Starting the worker in the foreground")
+    .debug(x,
+           "Listening the Redis server from the host %s, port %d with the password %s",
+           .host(x), .port(x), .password(x))
+    worker <- RedisBackend(RedisParam = x, type = "worker")
+    .bpworker_impl(worker)              # blocking
+}
+
+.bpstart_redis_worker_in_background <- function(x)
+{
+    .info(x, "starting %d worker(s) in the background", bpnworkers(x))
+    worker_env <- list(
+        REDISPARAM_HOST = .host(x),
+        REDISPARAM_PASSWORD = .password(x),
+        REDISPARAM_PORT = .port(x),
+        REDISPARAM_JOBNAME = bpjobname(x)
+    )
+
+    worker_env <- worker_env[!vapply(worker_env, is.null, logical(1))]
+    withr::with_envvar(
+        worker_env
+        ,{
+            rscript <- R.home("bin/Rscript")
+            script <- system.file(package="RedisParam", "script", "worker_start.R")
+            for (i in seq_len(bpnworkers(x)))
+                system2(rscript, shQuote(script), wait = FALSE)
+        })
+
+}
+
+redis.alive <- function(x){
+    tryCatch({
+        hiredis(host = .host(x),
+                port = .port(x),
+                password = .password(x)
+        )
+        TRUE
+    }, error = function(e) FALSE)
+}
+
+#########################
+# Class methods
+#########################
 .RedisParam$methods(
     show = function() {
         callSuper()
@@ -34,7 +89,24 @@ setMethod(
 #' @rdname RedisParam-class
 #'
 #' @export
-setMethod("bpbackend", "RedisParam", .backend)
+setMethod("bpbackend", "RedisParam",
+          function(x)
+          {
+              x$backend
+          }
+)
+
+#' @rdname RedisParam-class
+#'
+#' @export
+setReplaceMethod("bpbackend", c("RedisParam", "RedisBackend"),
+                 function(x, value)
+                 {
+                     x$backend <- value
+                     x
+                 })
+
+
 
 #' @rdname RedisParam-class
 #'

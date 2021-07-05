@@ -19,9 +19,9 @@ RedisBackend <- function(
 {
     if(!is.null(RedisParam)){
         jobname <- bpjobname(RedisParam)
-        host <- .redis_host(RedisParam)
-        port <- .redis_port(RedisParam)
-        password <- .redis_password(RedisParam)
+        host <- .host(RedisParam)
+        port <- .port(RedisParam)
+        password <- .password(RedisParam)
         timeout <- bptimeout(RedisParam)
     }
     type <- match.arg(type)
@@ -76,22 +76,22 @@ RedisBackend <- function(
 ## push_* and pop_* depend on push and pop
 .push_job = function(x, value)
 {
-    x$push(x$job_queue, value)
+    .push(x, x$job_queue, value)
 }
 
 .pop_job = function(x, value)
 {
-    x$pop(x$job_queue, value)
+    .pop(x, x$job_queue, value)
 }
 
 .push_result = function(x, value)
 {
-    x$push(x$result_queue, value)
+    .push(x, x$result_queue, value)
 }
 
 .pop_result = function(x)
 {
-    x$pop(x$result_queue)
+    .pop(x, x$result_queue)
 }
 
 length.RedisBackend = function(x)
