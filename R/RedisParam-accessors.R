@@ -1,5 +1,6 @@
 #' @rdname RedisParam-class
 #'
+#' @param x A `RedisParam` object.
 #' @details
 #'     `rpworkers()` determines the number of workers using
 #'     `snowWorkers()` if workers are created dynamically, or a fixed
@@ -15,7 +16,7 @@
 #'
 #'     `rppassword()` reads an (optional) password from the system
 #'     environment variable "REDIS_PASSWORD", defaulting to
-#'     `NA_character_` (no password). rppassword(x) gives the password
+#'     `NA_character_` (no password). `rppassword(x)` gives the password
 #'      used by `x`.
 #'
 #' @export
