@@ -20,6 +20,7 @@
 \alias{bpstop,RedisParam-method}
 \alias{bpstopall}
 \alias{bpstopall,RedisParam-method}
+\alias{bpworkers,RedisParam-method}
 \title{Enable redis-based parallel evaluation in BiocParallel}
 \usage{
 rpworkers(is.worker)
@@ -64,6 +65,8 @@ RedisParam(
 bpstopall(x)
 
 \S4method{bpstopall}{RedisParam}(x)
+
+\S4method{bpworkers}{RedisParam}(x)
 }
 \arguments{
 \item{is.worker}{logical(1) \code{bpstart()} creates worker-only

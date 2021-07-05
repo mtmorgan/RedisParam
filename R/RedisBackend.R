@@ -122,6 +122,7 @@ RedisBackend <- function(
     .pop(x, x$result_queue)
 }
 
+#' @export
 length.RedisBackend <- function(x)
 {
     length(bpworkers(x))
@@ -161,36 +162,19 @@ setMethod(
     }
 )
 
-setMethod(
-    ".send_all", "RedisBackend",
-    function(backend, value)
-    {
-        for(node in bpworkers(backend)){
-            .send_to(backend, node, value)
-        }
-    }
-)
-
 
 #' @export
 setMethod(
     ".send_to", "RedisBackend",
     function(backend, node, value)
     {
+        if(is.integer(node)){
+            node <- bpworkers(backend)[node]
+        }
         .push(backend, node, value)
         TRUE
     }
 )
-
-
-setMethod(
-    ".recv_all", "RedisBackend",
-    function(backend)
-    {
-        lapply(bpworkers(backend), function(i) .recv_any(backend))
-    }
-)
-
 
 
 setMethod(bpjobname, "RedisBackend",
