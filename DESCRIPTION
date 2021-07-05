@@ -13,7 +13,8 @@ Depends: R (>= 3.6.0), BiocParallel
 Imports: 
     methods, 
     redux,
-    withr
+    withr,
+    futile.logger
 License: Artistic-2.0
 Encoding: UTF-8
 LazyData: true

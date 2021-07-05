@@ -1,59 +1,23 @@
-.redis_host <- function(x) x$hostname
-
-.redis_port <- function(x) x$port
-
-.redis_password <- function(x) {
-    password <- x$password
-    if (is.na(password)) {
-        NULL
-    } else {
-        password
+.RedisParam$methods(
+    show = function() {
+        callSuper()
+        running.workers <- length(bpbackend(rp))
+        .password <- "*****"
+        if (is.null(.password(.self)))
+            .password <- NA_character_
+        cat(
+            "  hostname: ", .host(.self), "\n",
+            "  port: ", .port(.self),
+            "; password: ", .password,
+            "; is.worker: ", .is.worker(.self), "\n",
+            sep = "")
+        if(bpisup(.self)){
+            cat("Running workers: ", running.workers, "\n")
+        }
     }
-}
+)
 
-.redis_backend <- function(x) x$backend
 
-.redis_set_backend <- function(x, value) {
-    x$backend <- value
-    invisible(x)
-}
-
-.redis_isworker <- function(x)
-    x$is.worker
-
-.bpstart_redis_manager <-
-    function(x)
-    {
-        redis <- RedisBackend(RedisParam = x, type = "manager")
-        x <- .redis_set_backend(x, redis)
-    }
-
-.bpstart_redis_worker_only <-
-    function(x)
-    {
-        worker <- RedisBackend(RedisParam = x, type = "worker")
-        .bpworker_impl(worker)              # blocking
-    }
-
-.bpstart_redis_worker_in_background <-
-    function(x)
-    {
-        worker_env <- list(
-            REDISPARAM_PASSWORD = .redis_password(x),
-            REDISPARAM_PORT = .redis_port(x),
-            REDISPARAM_JOBNAME = bpjobname(x)
-        )
-        worker_env <- worker_env[!vapply(worker_env, is.null, logical(1))]
-        withr::with_envvar(
-            worker_env
-            ,{
-            rscript <- R.home("bin/Rscript")
-            script <- system.file(package="RedisParam", "script", "worker_start.R")
-            for (i in seq_len(bpnworkers(x)))
-                system2(rscript, shQuote(script), wait = FALSE)
-        })
-
-    }
 
 #' @rdname RedisParam-class
 #'
@@ -63,13 +27,14 @@ setMethod(
     "bpisup", "RedisParam",
     function(x)
     {
-        !identical(bpbackend(x), .redis_NULL)
-    })
+        !identical(bpbackend(x), .redisNULL())
+    }
+)
 
 #' @rdname RedisParam-class
 #'
 #' @export
-setMethod("bpbackend", "RedisParam", .redis_backend)
+setMethod("bpbackend", "RedisParam", .backend)
 
 #' @rdname RedisParam-class
 #'
@@ -80,8 +45,12 @@ setMethod(
     "bpstart", "RedisParam",
     function(x, ...)
     {
+        .debug(x, "bpstart")
         if(!bpisup(x)){
-            worker <- .redis_isworker(x)
+            if(!redis.alive(x)){
+                .error(x, "Fail to connect with the redis server")
+            }
+            worker <- .is.worker(x)
             if (isTRUE(worker)) {
                 ## worker only
                 .bpstart_redis_worker_only(x)
@@ -97,7 +66,8 @@ setMethod(
             }
         }
         TRUE
-    })
+    }
+)
 
 #' @rdname RedisParam-class
 #'
@@ -106,21 +76,23 @@ setMethod(
     "bpstop", "RedisParam",
     function(x)
     {
-        worker <- .redis_isworker(x)
+        .debug(x, "bpstop")
+        worker <- .is.worker(x)
         if (isTRUE(worker)) {
             ## no-op
         } else if (isFALSE(worker)) {
             ## don't stop workers by implicitly setting bpisup() to FALSE
-            x <- .redis_set_backend(x, .redis_NULL)
+            x <- .set.backend(x, .redisNULL())
             x <- .bpstop_impl(x)
         } else {
             ## stop workers
             x <- .bpstop_impl(x)
-            x <- .redis_set_backend(x, .redis_NULL)
+            x <- .set.backend(x, .redisNULL())
         }
         gc()                                # close connections
         TRUE
-    })
+    }
+)
 
 #' @rdname RedisParam-class
 #'
@@ -162,16 +134,17 @@ setMethod(
         if (!bpisup(x))
             return(x)
 
-        worker <- .redis_isworker(x)
+        worker <- .is.worker(x)
         if (isTRUE(worker)) {
-            stop("use 'bpstopall()' from manager, not worker")
+            .error("use 'bpstopall()' from manager, not worker")
         } else {
             .bpstop_impl(x)                 # send 'DONE' to all workers
-            .redis_set_backend(x, .redis_NULL)
+            .set.backend(x, .redisNULL())
         }
         gc()
         x
-    })
+    }
+)
 
 #' @rdname RedisParam-class
 #'
@@ -180,9 +153,16 @@ setMethod(
     "bpworkers", "RedisParam",
     function(x)
     {
-        if (is.na(.redis_isworker(x))) {
+        if (is.na(.is.worker(x))) {
             x$workers
         } else {
-            bpbackend(x)$length()
+            length(bpbackend(x))
         }
-    })
+    }
+)
+
+
+
+
+
+

@@ -36,7 +36,8 @@ RedisParam(
   manager.hostname = rphost(),
   manager.port = rpport(),
   manager.password = rppassword(),
-  is.worker = NA
+  is.worker = NA,
+  log.level = c("warn", "info", "debug", "error")
 )
 
 rpworkers(is.worker)

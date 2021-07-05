@@ -1,10 +1,8 @@
-.redis_NULL <- .RedisBackend()
-
 .RedisParam_prototype <- c(
     .BiocParallelParam_prototype,
     list(
         hostname = NA_character_, port = NA_integer_, password = NA_character_,
-        backend = .redis_NULL, is.worker = NA
+        backend = .redisNULL(), is.worker = NA
     )
 )
 
@@ -80,102 +78,46 @@
 #' table(unlist(res))
 #'
 #' @export
-RedisParam <-
-    function(workers = rpworkers(is.worker), tasks = 0L, jobname = ipcid(),
-             log = FALSE, logdir = NA, threshold = "INFO",
-             resultdir = NA_character_, stop.on.error= TRUE,
-             timeout = 2592000L, exportglobals= TRUE,
-             progressbar = FALSE, RNGseed = NULL,
-             manager.hostname = rphost(), manager.port = rpport(),
-             manager.password = rppassword(),
-             is.worker = NA)
-    {
-        if (!is.null(RNGseed))
-            RNGseed <- as.integer(RNGseed)
-        if(!nzchar(manager.password)){
-            manager.password <- NA_character_
-        }
-
-        prototype <- .prototype_update(
-            .RedisParam_prototype,
-            workers = as.integer(workers),
-            tasks = as.integer(tasks),
-            jobname = as.character(jobname),
-            log = as.logical(log),
-            logdir = as.character(logdir),
-            threshold = as.character(threshold),
-            resultdir = as.character(resultdir),
-            stop.on.error = as.logical(stop.on.error),
-            timeout = as.integer(timeout),
-            exportglobals = as.logical(exportglobals),
-            progressbar = as.logical(progressbar),
-            RNGseed = RNGseed,
-            hostname = as.character(manager.hostname),
-            port = as.integer(manager.port),
-            password = as.character(manager.password),
-            is.worker = as.logical(is.worker)
-        )
-        do.call(.RedisParam, prototype)
+RedisParam <- function(
+    workers = rpworkers(is.worker), tasks = 0L, jobname = ipcid(),
+    log = FALSE, logdir = NA, threshold = "INFO",
+    resultdir = NA_character_, stop.on.error= TRUE,
+    timeout = 2592000L, exportglobals= TRUE,
+    progressbar = FALSE, RNGseed = NULL,
+    manager.hostname = rphost(), manager.port = rpport(),
+    manager.password = rppassword(),
+    is.worker = NA)
+{
+    if (!is.null(RNGseed))
+        RNGseed <- as.integer(RNGseed)
+    if(!nzchar(manager.password)){
+        manager.password <- NA_character_
     }
 
-
-#' @rdname RedisParam-class
-#'
-#' @details `rpworkers()` determines the number of workers using
-#'     `snowWorkers()` if workers are created dynamically, or a fixed
-#'     maximum (currently 1000) if workers are listening on a queue.
-#'
-#'     `rphost()` reads the host name of the redis server from a
-#'     system environment variable `"REDIS_HOST"`, defaulting to
-#'     `"127.0.0.1"`
-#'
-#'     `rpport()` reads the port of the redis server from a system
-#'     environment variable `"REDIS_PORT"`, defaulting to 6379.
-#'
-#'     `rppassword()` reads an (optional) password from the system
-#'     environment variable "REDIS_PASSWORD", defaulting to
-#'     `NA_character_` (no password). The password is used by the
-#'     redis AUTH command.
-#'
-#' @export
-rpworkers <-
-    function(is.worker)
-    {
-        stopifnot(is.logical(is.worker), length(is.worker) == 1L)
-        if (is.na(is.worker)) {
-            snowWorkers()
-        } else if (is.worker) {
-            1L
-        } else {
-            ## a large number -- up to 1000 listening on the queue
-            1000L
-        }
+    prototype <- .prototype_update(
+        .RedisParam_prototype,
+        workers = as.integer(workers),
+        tasks = as.integer(tasks),
+        jobname = as.character(jobname),
+        log = as.logical(log),
+        logdir = as.character(logdir),
+        threshold = as.character(threshold),
+        resultdir = as.character(resultdir),
+        stop.on.error = as.logical(stop.on.error),
+        timeout = as.integer(timeout),
+        exportglobals = as.logical(exportglobals),
+        progressbar = as.logical(progressbar),
+        RNGseed = RNGseed,
+        hostname = as.character(manager.hostname),
+        port = as.integer(manager.port),
+        password = as.character(manager.password),
+        is.worker = as.logical(is.worker)
+    )
+    x <- do.call(.RedisParam, prototype)
+    if(log){
+        enable.log(x)
     }
+    x
+}
 
-#' @rdname RedisParam-class
-#'
-#' @export
-rphost <-
-    function()
-    {
-        Sys.getenv("REDIS_HOST", "127.0.0.1")
-    }
-
-#' @rdname RedisParam-class
-#'
-#' @export
-rpport <-
-    function()
-    {
-        as.integer(Sys.getenv("REDIS_PORT", 6379))
-    }
-
-#' @rdname RedisParam-class
-#'
-#' @export
-rppassword <-
-    function()
-    {
-        Sys.getenv("REDIS_PASSWORD",  NA_character_)
-    }
 

@@ -1,12 +1,13 @@
-redis_password <- Sys.getenv("REDISPARAM_PASSWORD")
-redis_port <- as.integer(Sys.getenv("REDISPARAM_PORT"))
+host <- Sys.getenv("REDISPARAM_HOST")
+password <- Sys.getenv("REDISPARAM_PASSWORD")
+port <- as.integer(Sys.getenv("REDISPARAM_PORT"))
 jobname <- Sys.getenv("REDISPARAM_JOBNAME")
-
 
 param <- RedisParam::RedisParam(
     jobname = jobname,
-    manager.port = redis_port,
-    manager.password = redis_password,
+    manager.hostname = host,
+    manager.port = port,
+    manager.password = password,
     is.worker = TRUE
 )
 
