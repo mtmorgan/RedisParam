@@ -63,9 +63,14 @@ rpport <- function(x)
 rppassword <- function(x)
 {
     if(missing(x)){
-        Sys.getenv("REDIS_PASSWORD", "NA_character_")
+        Sys.getenv("REDIS_PASSWORD", NA_character_)
     }else{
-        x$password
+        value <- x$password
+        if(is.na(value)){
+            NULL
+        }else{
+            value
+        }
     }
 }
 
@@ -78,3 +83,6 @@ rpisworker <- function(x)
 }
 
 
+.expectedWorkers <- function(x){
+    x$workers
+}

@@ -15,7 +15,8 @@
 #' arguments will be ignored except `type`.
 RedisBackend <- function(
     jobname, host = "127.0.0.1", port = 6379L, password = NULL,
-    timeout = 2592000L, type = c("manager", "worker"), RedisParam = NULL)
+    timeout = 2592000L, type = c("manager", "worker"), RedisParam = NULL
+)
 {
     if(!is.null(RedisParam)){
         jobname <- bpjobname(RedisParam)
@@ -25,11 +26,12 @@ RedisBackend <- function(
         timeout <- bptimeout(RedisParam)
     }
     type <- match.arg(type)
-
+    id <- Sys.getenv("REDISPARAM_ID", ipcid())
     api_client <- hiredis(host = host,
                           port = as.integer(port),
                           password = password)
-    api_client$CLIENT_SETNAME(paste0(jobname, "-redis_", type))
+    clientName <- .client_name(jobname, type, id)
+    api_client$CLIENT_SETNAME(clientName)
     job_queue <- paste0("biocparallel_redis_job:", jobname)
     result_queue <- paste0("biocparallel_redis_result:", jobname)
 
@@ -38,10 +40,36 @@ RedisBackend <- function(
                    job_queue = job_queue,
                    result_queue = result_queue,
                    timeout = as.integer(timeout),
-                   type = type),
+                   type = type,
+                   id = id),
               class = "RedisBackend")
 }
 
+.client_name_prefix <- function(jobname, type){
+    paste0(jobname, "_redis_", type, "_")
+}
+
+.client_name <- function(jobname, type, id)
+{
+    paste0(.client_name_prefix(jobname, type), id)
+}
+
+.all_workers <- function(x){
+    prefix <- .client_name_prefix(x$jobname, "worker")
+    clients <- x$api_client$CLIENT_LIST()
+    idx <- gregexpr(paste0(" name=", prefix, ".+? "), clients)[[1]]
+    if(idx[1] != -1){
+        end_idx <- idx + attr(idx, "match.length")
+        vapply(
+            seq_along(idx),
+            function(i)
+                substr(clients, idx[i] + 6L + nchar(prefix), end_idx[i] - 2L),
+            character(1)
+        )
+    }else{
+        character(0)
+    }
+}
 
 
 .push <- function(x, queue_name, value)
@@ -66,7 +94,7 @@ RedisBackend <- function(
             break
         }
         wait_time <- difftime(Sys.time(), start_time, unit = 'secs')
-        if(wait_time > self$timeout){
+        if(wait_time > x$timeout){
             stop("Redis pop operation timeout")
         }
     }
@@ -74,39 +102,33 @@ RedisBackend <- function(
 }
 
 ## push_* and pop_* depend on push and pop
-.push_job = function(x, value)
+.push_job <- function(x, value)
 {
     .push(x, x$job_queue, value)
 }
 
-.pop_job = function(x, value)
+.pop_job <- function(x)
 {
-    .pop(x, x$job_queue, value)
+    .pop(x, c(x$job_queue, x$id))
 }
 
-.push_result = function(x, value)
+.push_result <- function(x, value)
 {
     .push(x, x$result_queue, value)
 }
 
-.pop_result = function(x)
+.pop_result <- function(x)
 {
     .pop(x, x$result_queue)
 }
 
-length.RedisBackend = function(x)
+length.RedisBackend <- function(x)
 {
-    if(identical(x, .redisNULL())){
-        0
-    } else {
-        name <- paste0(x$jobname, "-redis_worker")
-        worker_query <- sprintf(" name=%s ", name)
-        clients <- x$api_client$CLIENT_LIST()
-        length(gregexpr(worker_query, clients)[[1]])
-    }
+    length(bpworkers(x))
 }
 
 
+## Worker
 #' @export
 setMethod(
     ".recv", "RedisBackend",
@@ -128,6 +150,7 @@ setMethod(
 #' @export
 setMethod(".close", "RedisBackend", function(worker) invisible(NULL) )
 
+## Manager
 #' @export
 setMethod(
     ".recv_any", "RedisBackend",
@@ -138,21 +161,52 @@ setMethod(
     }
 )
 
+setMethod(
+    ".send_all", "RedisBackend",
+    function(backend, value)
+    {
+        for(node in bpworkers(backend)){
+            .send_to(backend, node, value)
+        }
+    }
+)
+
+
 #' @export
 setMethod(
     ".send_to", "RedisBackend",
     function(backend, node, value)
     {
-        ## ignore 'node'
-        .push_job(backend, value)
+        .push(backend, node, value)
         TRUE
     }
 )
+
+
+setMethod(
+    ".recv_all", "RedisBackend",
+    function(backend)
+    {
+        lapply(bpworkers(backend), function(i) .recv_any(backend))
+    }
+)
+
 
 
 setMethod(bpjobname, "RedisBackend",
           function(x)
           {
               x$jobname
+          }
+)
+
+setMethod(bpworkers, "RedisBackend",
+          function(x)
+          {
+              if(identical(x, .redisNULL())){
+                  character()
+              } else {
+                  .all_workers(x)
+              }
           }
 )

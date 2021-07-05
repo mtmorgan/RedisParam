@@ -90,8 +90,8 @@ RedisParam <- function(
 {
     if (!is.null(RNGseed))
         RNGseed <- as.integer(RNGseed)
-    if(!nzchar(manager.password)){
-        manager.password <- NA_character_
+    if(!nzchar(redis.password)){
+        redis.password <- NA_character_
     }
 
     prototype <- .prototype_update(
@@ -108,9 +108,9 @@ RedisParam <- function(
         exportglobals = as.logical(exportglobals),
         progressbar = as.logical(progressbar),
         RNGseed = RNGseed,
-        hostname = as.character(manager.hostname),
-        port = as.integer(manager.port),
-        password = as.character(manager.password),
+        hostname = as.character(redis.hostname),
+        port = as.integer(redis.port),
+        password = as.character(redis.password),
         is.worker = as.logical(is.worker)
     )
     x <- do.call(.RedisParam, prototype)
