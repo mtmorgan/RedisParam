@@ -66,7 +66,7 @@ redis.alive <- function(x){
             "  hostname: ", rphost(.self), "\n",
             "  port: ", rpport(.self),
             "; password: ", .password,
-            "; is.worker: ", .is.worker(.self), "\n",
+            "; is.worker: ", rpisworker(.self), "\n",
             sep = "")
         if(bpisup(.self)){
             cat("Running workers: ", running.workers, "\n")
@@ -84,6 +84,7 @@ setMethod(
     "bpisup", "RedisParam",
     function(x)
     {
+        .trace(x, "bpisup")
         !identical(bpbackend(x), .redisNULL())
     }
 )
@@ -94,6 +95,7 @@ setMethod(
 setMethod("bpbackend", "RedisParam",
           function(x)
           {
+              .trace(x, "bpbackend")
               x$backend
           }
 )
@@ -104,6 +106,7 @@ setMethod("bpbackend", "RedisParam",
 setReplaceMethod("bpbackend", c("RedisParam", "RedisBackend"),
                  function(x, value)
                  {
+                     .trace(x, "bpbackend replacement")
                      x$backend <- value
                      x
                  })
@@ -119,12 +122,13 @@ setMethod(
     "bpstart", "RedisParam",
     function(x, ...)
     {
-        .debug(x, "bpstart")
+        .trace(x, "bpstart")
         if(!bpisup(x)){
             if(!redis.alive(x)){
                 .error(x, "Fail to connect with the redis server")
             }
-            worker <- .is.worker(x)
+            worker <- rpisworker(x)
+            .debug("isworker: %d", worker)
             if (isTRUE(worker)) {
                 ## worker only
                 .bpstart_redis_worker_only(x)
@@ -150,8 +154,8 @@ setMethod(
     "bpstop", "RedisParam",
     function(x)
     {
-        .debug(x, "bpstop")
-        worker <- .is.worker(x)
+        .trace(x, "bpstop")
+        worker <- rpisworker(x)
         if (isTRUE(worker)) {
             ## no-op
         } else if (isFALSE(worker)) {
@@ -205,10 +209,12 @@ setMethod(
     "bpstopall", "RedisParam",
     function(x)
     {
+        .trace(x, "bpstopall")
         if (!bpisup(x))
             return(x)
 
-        worker <- .is.worker(x)
+
+        worker <- rpisworker(x)
         if (isTRUE(worker)) {
             .error("use 'bpstopall()' from manager, not worker")
         } else {
@@ -220,20 +226,7 @@ setMethod(
     }
 )
 
-#' @rdname RedisParam-class
-#'
-#' @export
-setMethod(
-    "bpworkers", "RedisParam",
-    function(x)
-    {
-        if (is.na(rpisworker(x))) {
-            x$workers
-        } else {
-            length(bpbackend(x))
-        }
-    }
-)
+
 
 
 
