@@ -13,7 +13,7 @@
     .info(x, "Starting the worker in the foreground")
     .debug(x,
            "Listening the Redis server from the host %s, port %d with the password %s",
-           .host(x), .port(x), .password(x))
+           rphost(x), rpport(x), rppassword(x))
     worker <- RedisBackend(RedisParam = x, type = "worker")
     .bpworker_impl(worker)              # blocking
 }
@@ -22,9 +22,9 @@
 {
     .info(x, "starting %d worker(s) in the background", bpnworkers(x))
     worker_env <- list(
-        REDISPARAM_HOST = .host(x),
-        REDISPARAM_PASSWORD = .password(x),
-        REDISPARAM_PORT = .port(x),
+        REDISPARAM_HOST = rphost(x),
+        REDISPARAM_PASSWORD = rppassword(x),
+        REDISPARAM_PORT = rpport(x),
         REDISPARAM_JOBNAME = bpjobname(x)
     )
 
@@ -42,9 +42,9 @@
 
 redis.alive <- function(x){
     tryCatch({
-        hiredis(host = .host(x),
-                port = .port(x),
-                password = .password(x)
+        hiredis(host = rphost(x),
+                port = rpport(x),
+                password = rppassword(x)
         )
         TRUE
     }, error = function(e) FALSE)
@@ -57,12 +57,14 @@ redis.alive <- function(x){
     show = function() {
         callSuper()
         running.workers <- length(bpbackend(rp))
-        .password <- "*****"
-        if (is.null(.password(.self)))
+        if (is.null(rppassword(.self)))
             .password <- NA_character_
+        else
+            .password <- "*****"
+
         cat(
-            "  hostname: ", .host(.self), "\n",
-            "  port: ", .port(.self),
+            "  hostname: ", rphost(.self), "\n",
+            "  port: ", rpport(.self),
             "; password: ", .password,
             "; is.worker: ", .is.worker(.self), "\n",
             sep = "")
@@ -225,7 +227,7 @@ setMethod(
     "bpworkers", "RedisParam",
     function(x)
     {
-        if (is.na(.is.worker(x))) {
+        if (is.na(rpisworker(x))) {
             x$workers
         } else {
             length(bpbackend(x))

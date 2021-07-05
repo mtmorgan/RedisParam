@@ -19,9 +19,9 @@ RedisBackend <- function(
 {
     if(!is.null(RedisParam)){
         jobname <- bpjobname(RedisParam)
-        host <- .host(RedisParam)
-        port <- .port(RedisParam)
-        password <- .password(RedisParam)
+        host <- rphost(RedisParam)
+        port <- rpport(RedisParam)
+        password <- rppassword(RedisParam)
         timeout <- bptimeout(RedisParam)
     }
     type <- match.arg(type)
