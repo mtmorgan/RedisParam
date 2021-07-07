@@ -10,8 +10,8 @@ Authors@R:
 Description: This package provides a redis-based back-end for BiocParallel,
     enabling an alternative, modern mechanism for distributed computation.
 Depends: R (>= 3.6.0), BiocParallel
-Imports: 
-    methods, 
+Imports:
+    methods,
     redux,
     withr,
     futile.logger
@@ -19,6 +19,12 @@ License: Artistic-2.0
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.1.1
-Suggests: 
+Suggests:
     testthat
-    
+Collate: 
+    'RedisBackend-class.R'
+    'RedisParam-class.R'
+    'RedisParam-accessors.R'
+    'RedisParam-logger.R'
+    'RedisParam-methods.R'
+    'zzz.R'

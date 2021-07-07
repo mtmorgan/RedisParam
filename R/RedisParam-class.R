@@ -6,7 +6,6 @@
     )
 )
 
-
 #' @rdname RedisParam-class
 #'
 #' @title Enable redis-based parallel evaluation in BiocParallel
@@ -21,14 +20,23 @@
 #'     number of workers opened by `bpstart()`.
 #'
 #' @param tasks See `?"BiocParallelParam-class"`.
+#'
 #' @param log See `?"BiocParallelParam-class"`.
+#'
 #' @param logdir See `?"BiocParallelParam-class"`.
+#'
 #' @param threshold See `?"BiocParallelParam-class"`.
+#'
 #' @param resultdir See `?"BiocParallelParam-class"`.
+#'
 #' @param stop.on.error See `?"BiocParallelParam-class"`.
+#'
 #' @param timeout See `?"BiocParallelParam-class"`.
+#'
 #' @param exportglobals See `?"BiocParallelParam-class"`.
+#'
 #' @param progressbar See `?"BiocParallelParam-class"`.
+#'
 #' @param RNGseed See `?"BiocParallelParam-class"`.
 #'
 #' @param jobname character(1) name (unique) used to associate manager
@@ -78,15 +86,17 @@
 #' table(unlist(res))
 #'
 #' @export
-RedisParam <- function(
-    workers = rpworkers(is.worker), tasks = 0L, jobname = ipcid(),
-    log = FALSE, logdir = NA, threshold = "INFO",
-    resultdir = NA_character_, stop.on.error= TRUE,
-    timeout = 2592000L, exportglobals= TRUE,
-    progressbar = FALSE, RNGseed = NULL,
-    redis.hostname = rphost(), redis.port = rpport(),
-    redis.password = rppassword(),
-    is.worker = NA)
+RedisParam <-
+    function(
+        workers = rpworkers(is.worker), tasks = 0L, jobname = ipcid(),
+        log = FALSE, logdir = NA, threshold = "INFO",
+        resultdir = NA_character_, stop.on.error= TRUE,
+        timeout = 2592000L, exportglobals= TRUE,
+        progressbar = FALSE, RNGseed = NULL,
+        redis.hostname = rphost(), redis.port = rpport(),
+        redis.password = rppassword(),
+        is.worker = NA
+    )
 {
     if (!is.null(RNGseed))
         RNGseed <- as.integer(RNGseed)
@@ -117,5 +127,3 @@ RedisParam <- function(
     config.logger(x)
     x
 }
-
-

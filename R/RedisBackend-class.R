@@ -1,23 +1,47 @@
-.redisNULL <- function()
+setOldClass(c("redisNULL", "RedisBackend"))
+
+.RedisParam <- setRefClass(
+    "RedisParam",
+    contains = "BiocParallelParam",
+    fields = c(
+        hostname = "character", port = "integer", password = "character",
+        backend = "RedisBackend", is.worker = "logical"
+    )
+)
+
+.redisNULL <-
+    function()
 {
     structure(list(), class = c("redisNULL", "RedisBackend"))
 }
 
-#' Creating the Redis backend
+#' @rdname RedisBackend-class
 #'
-#' @param jobname The job name used by the manager and workers to connect.
-#' @param host The host of the Redis server.
-#' @param port The port of the Redis server.
-#' @param password The password of the redis server.
-#' @param timeout The waiting time in `BLPOP`
-#' @param type The type of the Backend(manager or worker?).
-#' @param RedisParam RedisParam, if this argument is not NULL, all the other
-#' arguments will be ignored except `type`.
-RedisBackend <- function(
-    RedisParam = NULL, jobname = "",
-    host = "127.0.0.1", port = 6379L, password = NULL,
-    timeout = 2592000L, type = c("manager", "worker")
-)
+#' @title Creating the Redis backend
+#'
+#' @keywords internal
+#'
+#' @param RedisParam RedisParam, if this argument is not NULL, all the
+#'     other arguments will be ignored except `type`.
+#'
+#' @param jobname character(1) The job name used by the manager and
+#'     workers to connect.
+#'
+#' @param host character(1) The host of the Redis server.
+#'
+#' @param port integer(1) The port of the Redis server.
+#'
+#' @param password character(1) The password of the redis server.
+#'
+#' @param timeout integer(1) The waiting time in `BLPOP`.
+#'
+#' @param type character(1) The type of the backend (manager or worker?).
+RedisBackend <-
+    function(
+        RedisParam = NULL, jobname = "",
+        host = "127.0.0.1", port = 6379L, password = NULL,
+        timeout = 2592000L, type = c("manager", "worker")
+    )
 {
     if (!is.null(RedisParam)) {
         jobname <- bpjobname(RedisParam)
@@ -45,22 +69,28 @@ RedisBackend <- function(
             result_queue = result_queue,
             timeout = as.integer(timeout),
             type = type,
-            id = id),
-        class = "RedisBackend")
+            id = id
+        ),
+        class = "RedisBackend"
+    )
 }
 
-.client_name_prefix <- function(jobname, type){
+.client_name_prefix <-
+    function(jobname, type)
+{
     paste0(jobname, "_redis_", type, "_")
 }
 
-.client_name <- function(jobname, type, id)
+.client_name <-
+    function(jobname, type, id)
 {
     paste0(.client_name_prefix(jobname, type), id)
 }
 
-
 ## regmatches
-.all_workers <- function(x){
+.all_workers <-
+    function(x)
+{
     prefix <- .client_name_prefix(x$jobname, "worker")
     clients <- x$api_client$CLIENT_LIST()
     idx <- gregexpr(paste0(" name=", prefix, ".+? "), clients)
@@ -69,8 +99,8 @@ RedisBackend <- function(
     substring(clientsNames, nchar(prefix) + 7, nchar(clientsNames) - 1)
 }
 
-
-.push <- function(x, queue_name, value)
+.push <-
+    function(x, queue_name, value)
 {
     value <- serialize(value, NULL, xdr = FALSE)
     x$api_client$RPUSH(
@@ -79,7 +109,8 @@ RedisBackend <- function(
     )
 }
 
-.pop <- function(x, queue_name)
+.pop <-
+    function(x, queue_name)
 {
     value <- NULL
     start_time <- Sys.time()
@@ -100,95 +131,89 @@ RedisBackend <- function(
 }
 
 ## push_* and pop_* depend on push and pop
-.push_job <- function(x, value)
+.push_job <-
+    function(x, value)
 {
     .push(x, x$job_queue, value)
 }
 
-.pop_job <- function(x)
+.pop_job <-
+    function(x)
 {
     .pop(x, c(x$job_queue, x$id))
 }
 
-.push_result <- function(x, value)
+.push_result <-
+    function(x, value)
 {
     .push(x, x$result_queue, value)
 }
 
-.pop_result <- function(x)
+.pop_result <-
+    function(x)
 {
     .pop(x, x$result_queue)
 }
 
 #' @export
-length.RedisBackend <- function(x)
+length.RedisBackend <-
+    function(x)
 {
     length(bpworkers(x))
 }
 
-
 ## Worker
 #' @export
-setMethod(
-    ".recv", "RedisBackend",
+setMethod(".recv", "RedisBackend",
     function(worker)
-    {
-        .pop_job(worker)
-    }
-)
+{
+    .pop_job(worker)
+})
 
 #' @export
-setMethod(
-    ".send", "RedisBackend",
+setMethod(".send", "RedisBackend",
     function(worker, value)
-    {
-        .push_result(worker, value)
-    }
-)
+{
+    .push_result(worker, value)
+})
 
 #' @export
-setMethod(".close", "RedisBackend", function(worker) {
+setMethod(".close", "RedisBackend",
+    function(worker)
+{
     invisible(NULL)
 })
 
 ## Manager
 #' @export
-setMethod(
-    ".recv_any", "RedisBackend",
+setMethod(".recv_any", "RedisBackend",
     function(backend)
-    {
-        value <- .pop_result(backend)
-        list(node = value$tag, value = value)
-    }
-)
-
+{
+    value <- .pop_result(backend)
+    list(node = value$tag, value = value)
+})
 
 #' @export
-setMethod(
-    ".send_to", "RedisBackend",
+setMethod(".send_to", "RedisBackend",
     function(backend, node, value)
-    {
-        node <- bpworkers(backend)[node]
-        .push(backend, node, value)
-        TRUE
-    }
-)
-
+{
+    node <- bpworkers(backend)[node]
+    .push(backend, node, value)
+    TRUE
+})
 
 setMethod(bpjobname, "RedisBackend",
-          function(x)
-          {
-              x$jobname
-          }
-)
+    function(x)
+{
+    x$jobname
+})
 
 setMethod(bpworkers, "RedisBackend",
-          function(x)
-          {
-              if (identical(x, .redisNULL())) {
-                  character()
-              } else {
-                  .all_workers(x)
-              }
-          }
-)
+    function(x)
+{
+    if (identical(x, .redisNULL())) {
+        character()
+    } else {
+        .all_workers(x)
+    }
+})

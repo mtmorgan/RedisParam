@@ -1,6 +1,13 @@
+## The following line influences file collation order, and thus
+## presentation of functions on the help page.
+
+#' @include RedisParam-class.R
+NULL
+
 #' @rdname RedisParam-class
 #'
 #' @param x A `RedisParam` object.
+#'
 #' @details
 #'     `rpworkers()` determines the number of workers using
 #'     `snowWorkers()` if workers are created dynamically, or a fixed
@@ -20,7 +27,8 @@
 #'      used by `x`.
 #'
 #' @export
-rpworkers <- function(is.worker)
+rpworkers <-
+    function(is.worker)
 {
     stopifnot(is.logical(is.worker), length(is.worker) == 1L)
     if (is.na(is.worker)) {
@@ -36,11 +44,12 @@ rpworkers <- function(is.worker)
 #' @rdname RedisParam-class
 #'
 #' @export
-rphost <- function(x)
+rphost <-
+    function(x)
 {
-    if(missing(x)){
+    if (missing(x)) {
         Sys.getenv("REDIS_HOST", "127.0.0.1")
-    }else{
+    } else {
         x$hostname
     }
 }
@@ -48,11 +57,12 @@ rphost <- function(x)
 #' @rdname RedisParam-class
 #'
 #' @export
-rpport <- function(x)
+rpport <-
+    function(x)
 {
-    if(missing(x)){
+    if (missing(x)) {
         Sys.getenv("REDIS_PORT", "127.0.0.1")
-    }else{
+    } else {
         x$port
     }
 }
@@ -60,11 +70,12 @@ rpport <- function(x)
 #' @rdname RedisParam-class
 #'
 #' @export
-rppassword <- function(x)
+rppassword <-
+    function(x)
 {
-    if(missing(x)){
+    if (missing(x)) {
         Sys.getenv("REDIS_PASSWORD", NA_character_)
-    }else{
+    } else {
         value <- x$password
         if(is.na(value)){
             NULL
@@ -77,12 +88,14 @@ rppassword <- function(x)
 #' @rdname RedisParam-class
 #'
 #' @export
-rpisworker <- function(x)
+rpisworker <-
+    function(x)
 {
     x$is.worker
 }
 
-
-.bpworkers <- function(x){
+.bpworkers <-
+    function(x)
+{
     x$workers
 }
