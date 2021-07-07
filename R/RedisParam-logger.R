@@ -1,5 +1,5 @@
 ## Get the logger name
-get.loger.name <- function(x){
+get.logger.name <- function(x){
     paste0("RedisParam.", bpjobname(x))
 }
 
@@ -12,9 +12,8 @@ get.log.file <- function(x){
     }
 }
 
-
 config.logger <- function(x){
-    logger.name <- get.loger.name(x)
+    logger.name <- get.logger.name(x)
     if(bplog(x)){
         set.log.threshold(x)
         if(!is.na(bplogdir(x))){
@@ -27,34 +26,34 @@ config.logger <- function(x){
 
 set.log.threshold <- function(x){
     threshold <- bpthreshold(x)
-    logger.name <- get.loger.name(x)
+    logger.name <- get.logger.name(x)
     flog.threshold(get(threshold), name= logger.name)
 }
 
 
 .trace <- function(x, ...){
-    flog.trace(..., name = get.loger.name(x))
+    flog.trace(..., name = get.logger.name(x))
 }
 
 .debug <- function(x, ...)
 {
-    flog.debug(..., name = get.loger.name(x))
+    flog.debug(..., name = get.logger.name(x))
 }
 
 .info <- function(x, ...)
 {
-    flog.info(..., name = get.loger.name(x))
+    flog.info(..., name = get.logger.name(x))
 }
 
 .warn <- function(x, ...)
 {
-    value <- flog.warn(..., name = get.loger.name(x))
+    value <- flog.warn(..., name = get.logger.name(x))
     warning(value)
 }
 
 .error <- function(x, ...)
 {
-    value <- flog.error(..., name = get.loger.name(x))
+    value <- flog.error(..., name = get.logger.name(x))
     stop(value)
 }
 

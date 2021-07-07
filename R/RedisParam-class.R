@@ -90,7 +90,7 @@ RedisParam <- function(
 {
     if (!is.null(RNGseed))
         RNGseed <- as.integer(RNGseed)
-    if(!nzchar(redis.password)){
+    if (!nzchar(redis.password)) {
         redis.password <- NA_character_
     }
 

@@ -83,6 +83,6 @@ rpisworker <- function(x)
 }
 
 
-.expectedWorkers <- function(x){
+.bpworkers <- function(x){
     x$workers
 }

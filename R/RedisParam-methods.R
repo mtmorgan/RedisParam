@@ -21,8 +21,8 @@
 
 .bpstart_redis_worker_in_background <- function(x)
 {
-    .info(x, "starting %d worker(s) in the background", .expectedWorkers(x))
-    redisIds <- vapply(seq_len(.expectedWorkers(x)),
+    .info(x, "starting %d worker(s) in the background", .bpworkers(x))
+    redisIds <- vapply(seq_len(.bpworkers(x)),
                        function(i)ipcid(),
                        character(1))
     worker_env <- list(
@@ -36,7 +36,7 @@
 
     rscript <- R.home("bin/Rscript")
     script <- system.file(package="RedisParam", "script", "worker_start.R")
-    for (i in seq_len(.expectedWorkers(x))){
+    for (i in seq_len(.bpworkers(x))){
         worker_env$REDISPARAM_ID <- redisIds[i]
         withr::with_envvar(
             worker_env,
@@ -49,15 +49,15 @@
     startTime <- Sys.time()
     repeat{
         success <- redisIds %in% bpworkers(x)
-        if(all(success)){
+        if (all(success)) {
             break
         }
-        if(difftime(Sys.time(),startTime, units = "secs") > 10){
-            if(sum(success) == 0){
+        if (difftime(Sys.time(),startTime, units = "secs") > 10) {
+            if (sum(success) == 0) {
                 .error(x, "Fail to start the worker in the background")
             }else{
-                .warn(x, "Only %d workers are started successfully",
-                      sum(success))
+                .warn(x, "Continue with %d workers(Expected: %d).",
+                      sum(success), length(success))
             }
         }
         Sys.sleep(0.5)
@@ -92,9 +92,6 @@ redis.alive <- function(x){
             "; password: ", .password,
             "; is.worker: ", rpisworker(.self), "\n",
             sep = "")
-        if(bpisup(.self)){
-            cat("  Running workers: ", running.workers, "\n")
-        }
     }
 )
 
@@ -147,27 +144,28 @@ setMethod(
     function(x, ...)
     {
         .trace(x, "bpstart")
-        if(!bpisup(x)){
-            if(!redis.alive(x)){
-                .error(x, "Fail to connect with the redis server")
-            }
-            worker <- rpisworker(x)
-            .debug(x, "isworker: %d", worker)
-            if (isTRUE(worker)) {
-                ## worker only
-                .bpstart_redis_worker_only(x)
-            } else if (isFALSE(worker)) {
-                ## manager only
-                .bpstart_redis_manager(x)
-                .bpstart_impl(x)
-            } else {
-                ## worker & manager
-                .bpstart_redis_manager(x)
-                .bpstart_redis_worker_in_background(x)
-                .bpstart_impl(x)
-            }
+        if (bpisup(x)) {
+            return(invisible(x))
         }
-        TRUE
+        if (!redis.alive(x)) {
+            .error(x, "Fail to connect with the redis server")
+        }
+        worker <- rpisworker(x)
+        .debug(x, "isworker: %d", worker)
+        if (isTRUE(worker)) {
+            ## worker only
+            .bpstart_redis_worker_only(x)
+        } else if (isFALSE(worker)) {
+            ## manager only
+            .bpstart_redis_manager(x)
+            .bpstart_impl(x)
+        } else {
+            ## worker & manager
+            .bpstart_redis_manager(x)
+            .bpstart_redis_worker_in_background(x)
+            .bpstart_impl(x)
+        }
+        return(invisible(x))
     }
 )
 
@@ -262,8 +260,6 @@ setMethod(
         bpworkers(bpbackend(x))
     }
 )
-
-
 
 
 
