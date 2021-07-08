@@ -32,9 +32,10 @@ NULL
 .bpstart_redis_worker_in_background <-
     function(x)
 {
-    .info(x, "starting %d worker(s) in the background", .bpworkers(x))
-    redisIds <-
-        vapply(seq_len(.bpworkers(x)), function(i) ipcid(), character(1))
+    nworkers <- bpnworkers(x)
+    .info(x, "starting %d worker(s) in the background", nworkers)
+
+    redisIds <- vapply(seq_len(nworkers), function(i) ipcid(), character(1))
     worker_env <- list(
         REDISPARAM_HOST = rphost(x),
         REDISPARAM_PASSWORD = rppassword(x),
@@ -46,7 +47,7 @@ NULL
 
     rscript <- R.home("bin/Rscript")
     script <- system.file(package="RedisParam", "script", "worker_start.R")
-    for (i in seq_len(.bpworkers(x))) {
+    for (i in seq_len(nworkers)) {
         worker_env$REDISPARAM_ID <- redisIds[i]
         withr::with_envvar(
             worker_env,
@@ -58,7 +59,7 @@ NULL
     ## Wait until all workers are running
     startTime <- Sys.time()
     repeat {
-        success <- redisIds %in% bpworkers(x)
+        success <- redisIds %in% bpworkers(bpbackend(x))
         if (all(success)) {
             break
         }
@@ -91,8 +92,11 @@ NULL
         cat(
             "  rphost: ", rphost(.self),
             "; rpport: ", rpport(.self),
-            "; rpisworker: ", rpisworker(.self), "\n",
-            "  rppassword: ", .password, "\n",
+            "; rppassword: ", .password, "\n",
+            "  rpisworker: ", rpisworker(.self),
+            if (!isTRUE(rpisworker(.self)))
+                "; running workers: ", bpnworkers(bpbackend(.self)),
+            "\n",
             sep = "")
     }
 )
@@ -227,13 +231,4 @@ bpstopall <-
     }
     gc()
     x
-})
-
-#' @rdname RedisParam-class
-#'
-#' @export
-setMethod(bpworkers, "RedisParam",
-    function(x)
-{
-    bpworkers(bpbackend(x))
-})
+}

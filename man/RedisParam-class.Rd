@@ -19,7 +19,6 @@
 \alias{bpstart,RedisParam-method}
 \alias{bpstop,RedisParam-method}
 \alias{bpstopall}
-\alias{bpworkers,RedisParam-method}
 \title{Enable redis-based parallel evaluation in BiocParallel}
 \usage{
 RedisParam(
@@ -62,8 +61,6 @@ rpisworker(x)
 \S4method{bpstop}{RedisParam}(x)
 
 bpstopall(x)
-
-\S4method{bpworkers}{RedisParam}(x)
 }
 \arguments{
 \item{workers}{integer(1) number of redis workers. For `is.worker

@@ -99,9 +99,3 @@ rpisworker <-
 {
     x$is.worker
 }
-
-.bpworkers <-
-    function(x)
-{
-    x$workers
-}

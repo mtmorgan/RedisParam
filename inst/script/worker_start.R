@@ -13,4 +13,3 @@ param <- RedisParam::RedisParam(
 )
 
 RedisParam::bpstart(param)
-
