@@ -1,67 +1,10 @@
-setOldClass("redis_worker")
-
-setOldClass(c("redis_NULL", "redis_manager"))
-
-.redis_NULL <-
-    function()
-{
-    structure(list(), class = c("redis_NULL", "redis_manager"))
-}
-
 .RedisParam_prototype <- c(
     .BiocParallelParam_prototype,
     list(
         hostname = NA_character_, port = NA_integer_, password = NA_character_,
-        backend = .redis_NULL(), is.worker = NA
+        backend = .redisNULL(), is.worker = NA
     )
 )
-
-#' @import methods BiocParallel
-.RedisParam <- setRefClass(
-    "RedisParam",
-    contains = "BiocParallelParam",
-    fields = c(
-        hostname = "character", port = "integer", password = "character",
-        backend = "redis_manager", is.worker = "logical"
-    ),
-    methods = list(
-        show = function() {
-            callSuper()
-            .password <- "*****"
-            if (is.null(.redis_password(.self)))
-                .password <- NA_character_
-            cat(
-                "  hostname: ", .redis_host(.self), "\n",
-                "  port: ", .redis_port(.self),
-                "; password: ", .password,
-                "; is.worker: ", .redis_isworker(.self), "\n",
-                sep = "")
-        }
-    )
-)
-
-.redis_host <- function(x) x$hostname
-
-.redis_port <- function(x) x$port
-
-.redis_password <- function(x) {
-    password <- x$password
-    if (is.na(password)) {
-        NULL
-    } else {
-        password
-    }
-}
-
-.redis_backend <- function(x) x$backend
-
-.redis_set_backend <- function(x, value) {
-    x$backend <- value
-    invisible(x)
-}
-
-.redis_isworker <- function(x)
-    x$is.worker
 
 #' @rdname RedisParam-class
 #'
@@ -76,28 +19,37 @@ setOldClass(c("redis_NULL", "redis_manager"))
 #'     expected to be available. For `is.worker = NA`, this is the
 #'     number of workers opened by `bpstart()`.
 #'
-#' @param tasks See BiocParalleParam-class.
-#' @param log See BiocParalleParam-class.
-#' @param logdir See BiocParalleParam-class.
-#' @param threshold See BiocParalleParam-class.
-#' @param resultdir See BiocParalleParam-class.
-#' @param stop.on.error See BiocParalleParam-class.
-#' @param timeout See BiocParalleParam-class.
-#' @param exportglobals See BiocParalleParam-class.
-#' @param progressbar See BiocParalleParam-class.
-#' @param RNGseed See BiocParalleParam-class.
+#' @param tasks See `?"BiocParallelParam-class"`.
+#'
+#' @param log See `?"BiocParallelParam-class"`.
+#'
+#' @param logdir See `?"BiocParallelParam-class"`.
+#'
+#' @param threshold See `?"BiocParallelParam-class"`.
+#'
+#' @param resultdir See `?"BiocParallelParam-class"`.
+#'
+#' @param stop.on.error See `?"BiocParallelParam-class"`.
+#'
+#' @param timeout See `?"BiocParallelParam-class"`.
+#'
+#' @param exportglobals See `?"BiocParallelParam-class"`.
+#'
+#' @param progressbar See `?"BiocParallelParam-class"`.
+#'
+#' @param RNGseed See `?"BiocParallelParam-class"`.
 #'
 #' @param jobname character(1) name (unique) used to associate manager
 #'     & workers on a queue.
 #'
-#' @param manager.hostname character(1) host name of redis server,
+#' @param redis.hostname character(1) host name of redis server,
 #'     from system environment variable `REDIS_HOST` or, by default,
 #'     `"127.0.0.1"`.
 #'
-#' @param manager.port integer(1) port of redis server, from system
+#' @param redis.port integer(1) port of redis server, from system
 #'     environment variable `REDIS_PORT` or, by default, 6379.
 #'
-#' @param manager.password character(1) host password of redis server
+#' @param redis.password character(1) or NULL, host password of redis server
 #'     or, by default, `NA_character_` (no password).
 #'
 #' @param is.worker logical(1) \code{bpstart()} creates worker-only
@@ -121,7 +73,7 @@ setOldClass(c("redis_NULL", "redis_manager"))
 #'     Alternatively, a manager and one or more workers can each be
 #'     started in different processes across a network. The manager is
 #'     started, e.g., in an interactive session, by specifying
-#'     `is.worker = FALSE`. Wokrers are started, typically as
+#'     `is.worker = FALSE`. Workers are started, typically as
 #'     background processes, with `is.worker = TRUE`. Both manager and
 #'     workers must specify the same value for `jobname =`, the redis
 #'     key used for communication. In this scenario, workers can be
@@ -130,22 +82,30 @@ setOldClass(c("redis_NULL", "redis_manager"))
 #'     scenarios.
 #'
 #' @examples
-#' res <- bplapply(1:20, function(i) Sys.getpid(), BPPARAM = RedisParam())
-#' table(unlist(res))
+#' param <- RedisParam()
+#' if (rpalive(param)) {
+#'     res <- bplapply(1:20, function(i) Sys.getpid(), BPPARAM = param)
+#'     table(unlist(res))
+#' }
 #'
 #' @export
 RedisParam <-
-    function(workers = rpworkers(is.worker), tasks = 0L, jobname = ipcid(),
-             log = FALSE, logdir = NA, threshold = "INFO",
-             resultdir = NA_character_, stop.on.error= TRUE,
-             timeout = 2592000L, exportglobals= TRUE,
-             progressbar = FALSE, RNGseed = NULL,
-             manager.hostname = rphost(), manager.port = rpport(),
-             manager.password = rppassword(),
-             is.worker = NA)
+    function(
+        workers = rpworkers(is.worker), tasks = 0L, jobname = ipcid(),
+        log = FALSE, logdir = NA, threshold = "INFO",
+        resultdir = NA_character_, stop.on.error= TRUE,
+        timeout = 2592000L, exportglobals= TRUE,
+        progressbar = FALSE, RNGseed = NULL,
+        redis.hostname = rphost(), redis.port = rpport(),
+        redis.password = rppassword(),
+        is.worker = NA
+    )
 {
     if (!is.null(RNGseed))
         RNGseed <- as.integer(RNGseed)
+    if (!nzchar(redis.password)) {
+        redis.password <- NA_character_
+    }
 
     prototype <- .prototype_update(
         .RedisParam_prototype,
@@ -161,323 +121,30 @@ RedisParam <-
         exportglobals = as.logical(exportglobals),
         progressbar = as.logical(progressbar),
         RNGseed = RNGseed,
-        hostname = as.character(manager.hostname),
-        port = as.integer(manager.port),
-        password = as.character(manager.password),
+        hostname = as.character(redis.hostname),
+        port = as.integer(redis.port),
+        password = as.character(redis.password),
         is.worker = as.logical(is.worker)
     )
-    do.call(.RedisParam, prototype)
-}
-
-
-#' @rdname RedisParam-class
-#'
-#' @details `rpworkers()` determines the number of workers using
-#'     `snowWorkers()` if workers are created dynamically, or a fixed
-#'     maximum (currently 1000) if workers are listening on a queue.
-#'
-#'     `rphost()` reads the host name of the redis server from a
-#'     system environment variable `"REDIS_HOST"`, defaulting to
-#'     `"127.0.0.1"`
-#'
-#'     `rpport()` reads the port of the redis server from a system
-#'     environment variable `"REDIS_PORT"`, defaulting to 6379.
-#'
-#'     `rppassword()` reads an (optional) password from the system
-#'     environment variable "REDIS_PASSWORD", defaulting to
-#'     `NA_character_` (no password). The password is used by the
-#'     redis AUTH command.
-#'
-#' @export
-rpworkers <-
-    function(is.worker)
-{
-    stopifnot(is.logical(is.worker), length(is.worker) == 1L)
-    if (is.na(is.worker)) {
-        snowWorkers()
-    } else if (is.worker) {
-        1L
-    } else {
-        ## a large number -- up to 1000 listening on the queue
-        1000L
-    }
-}
-
-#' @rdname RedisParam-class
-#'
-#' @export
-rphost <-
-    function()
-{
-    Sys.getenv("REDIS_HOST", "127.0.0.1")
-}
-
-#' @rdname RedisParam-class
-#'
-#' @export
-rpport <-
-    function()
-{
-    as.integer(Sys.getenv("REDIS_PORT", 6379))
-}
-
-#' @rdname RedisParam-class
-#'
-#' @export
-rppassword <-
-    function()
-{
-    Sys.getenv("REDIS_PASSWORD",  NA_character_)
-}
-
-#' @importFrom redux hiredis
-.redis <-
-    function(x, class)
-{
-    host <- .redis_host(x)
-    port <- .redis_port(x)
-    password <- .redis_password(x)
-    jobname <- bpjobname(x)
-    job_queue <- paste0("biocparallel_redis_job:", jobname)
-    result_queue <- paste0("biocparallel_redis_result:", jobname)
-    timeout <- bptimeout(x)
-    length <- bpnworkers(x)
-    redis <- tryCatch({
-        hiredis(host = host, port = port, password = password)
-    }, error = function(e) {
-        stop(
-            "'redis' not available:\n",
-            "  ", conditionMessage(e)
-        )
-    })
-    redis$CLIENT_SETNAME(paste0(jobname, "-", class))
-    structure(
-        list(
-            redis = redis,
-            jobname = jobname,
-            job_queue = job_queue,
-            result_queue = result_queue,
-            timeout = timeout, length = length
-        ),
-        class = class
-    )
-}
-
-#' @export
-setMethod(
-    ".recv", "redis_worker",
-    function(worker)
-{
-    result <- worker$redis$BLPOP(worker$job_queue, worker$timeout)
-    unserialize(result[[2]])
-})
-
-#' @export
-setMethod(
-    ".send", "redis_worker",
-    function(worker, value)
-{
-    value <- serialize(value, NULL, xdr = FALSE)
-    worker$redis$RPUSH(worker$result_queue, value)
-})
-
-#' @export
-setMethod(".close", "redis_worker", function(worker) invisible(NULL) )
-
-#' @export
-setMethod(
-    ".recv_any", "redis_manager",
-    function(backend)
-{
-    result <- backend$redis$BLPOP(backend$result_queue, backend$timeout)
-    value <- unserialize(result[[2]])
-    list(node = value$tag, value = value)
-})
-
-#' @export
-setMethod(
-    ".send_to", "redis_manager",
-    function(backend, node, value)
-{
-    ## ignore 'node'
-    value <- serialize(value, NULL, xdr = FALSE)
-    backend$redis$RPUSH(backend$job_queue, value)
-    TRUE
-})
-
-#' @export
-length.redis_manager <-
-    function(x)
-{
-    if (inherits(x, "redis_NULL")) {
-        0L
-    } else {
-        name <- paste0(x$jobname, "-redis_worker")
-        worker_query <- sprintf(" name=%s ", name)
-        clients <- x$redis$CLIENT_LIST()
-        length(gregexpr(worker_query, clients)[[1]])
-    }
-}
-
-#' @importFrom redux redis_available hiredis
-.bpstart_redis_manager <-
-    function(x)
-{
-    redis <- .redis(x, "redis_manager")
-    x <- .redis_set_backend(x, redis)
-}
-
-.bpstart_redis_worker_only <-
-    function(x)
-{
-    worker <- .redis(x, "redis_worker")
-    .bpworker_impl(worker)              # blocking
-}
-
-.bpstart_redis_worker_multicore <-
-    function(x)
-{
-    old_redisparam_jobname <- Sys.getenv("REDISPARAM_JOBNAME")
-    Sys.setenv(REDISPARAM_JOBNAME = bpjobname(x))
-    on.exit({
-        if (nzchar(old_redisparam_jobname)) {
-            Sys.setenv(REDISPARAM_JOBNAME = old_redisparam_jobname)
-        } else {
-            Sys.unsetenv("REDISPARAM_JOBNAME")
-        }
-    })
-
-    rscript <- R.home("bin/Rscript")
-    script <- system.file(package="RedisParam", "script", "worker_start.R")
-    for (i in seq_len(bpnworkers(x)))
-        system2(rscript, script, wait = FALSE)
-}
-
-#' @rdname RedisParam-class
-#'
-#' @param x A `RedisParam` instance.
-#' @export
-setMethod(
-    "bpisup", "RedisParam",
-    function(x)
-{
-    !identical(bpbackend(x), .redis_NULL())
-})
-
-#' @rdname RedisParam-class
-#'
-#' @export
-setMethod("bpbackend", "RedisParam", .redis_backend)
-
-#' @rdname RedisParam-class
-#'
-#' @param \dots ignored.
-#'
-#' @export
-setMethod(
-    "bpstart", "RedisParam",
-    function(x, ...)
-{
-    worker <- .redis_isworker(x)
-    if (isTRUE(worker)) {
-        ## worker only
-        .bpstart_redis_worker_only(x)
-    } else if (isFALSE(worker)) {
-        ## manager only
-        .bpstart_redis_manager(x)
-        .bpstart_impl(x)
-    } else {
-        ## worker & manager
-        .bpstart_redis_manager(x)
-        .bpstart_redis_worker_multicore(x)
-        .bpstart_impl(x)
-    }
-})
-
-#' @rdname RedisParam-class
-#'
-#' @export
-setMethod(
-    "bpstop", "RedisParam",
-    function(x)
-{
-    worker <- .redis_isworker(x)
-    if (isTRUE(worker)) {
-        ## no-op
-    } else if (isFALSE(worker)) {
-        ## don't stop workers by implicitly setting bpisup() to FALSE
-        x <- .redis_set_backend(x, .redis_NULL())
-        x <- .bpstop_impl(x)
-    } else {
-        ## stop workers
-        x <- .bpstop_impl(x)
-        x <- .redis_set_backend(x, .redis_NULL())
-    }
-    gc()                                # close connections
+    x <- do.call(.RedisParam, prototype)
+    config.logger(x)
     x
-})
+}
 
 #' @rdname RedisParam-class
 #'
-#' @export
-setGeneric("bpstopall", function(x) standardGeneric("bpstopall"))
-
-#' @rdname RedisParam-class
+#' @param x A `RedisParam` object.
 #'
-#' @details `bpstopall()` is used from the manager to stop redis
-#'     workers launched independently, with `is.worker = TRUE`.
-#'
-#' @examples
-#' \dontrun{
-#' ## start workers in background proocess(es)
-#' rscript <- R.home("bin/Rscript")
-#' worker_script <- tempfile()
-#' writeLines(c(
-#'     'worker <- RedisParam::RedisParam(jobname = "demo", is.worker = TRUE)',
-#'     'RedisParam::bpstart(worker)'
-#' ), worker_script)
-#'
-#' for (i in seq_len(2))
-#'     system2(rscript, worker_script, wait = FALSE)
-#'
-#' ## start manager
-#' p <- RedisParam(jobname = "demo", is.worker = FALSE)
-#' result <- bplapply(1:5, function(i) Sys.getpid(), BPPARAM = p)
-#' table(unlist(result))
-#'
-#' ## stop all workers
-#' bpstopall(p)
-#' }
+#' @details `rpalive()` tests whether it is possible to connect to a
+#'     redis server using the host, port, and password in the
+#'     `RedisParam` object.
 #'
 #' @export
-setMethod(
-    "bpstopall", "RedisParam",
+rpalive <-
     function(x)
 {
-    if (!bpisup(x))
-        return(x)
-
-    worker <- .redis_isworker(x)
-    if (isTRUE(worker)) {
-        stop("use 'bpstopall()' from manager, not worker")
-    } else {
-        .bpstop_impl(x)                 # send 'DONE' to all workers
-        .redis_set_backend(x, .redis_NULL())
-    }
-    gc()
-    x
-})
-
-#' @rdname RedisParam-class
-#'
-#' @export
-setMethod(
-    "bpworkers", "RedisParam",
-    function(x)
-{
-    if (is.na(.redis_isworker(x))) {
-        x$workers
-    } else {
-        length(bpbackend(x))
-    }
-})
+    tryCatch({
+        hiredis(host = rphost(x), port = rpport(x), password = rppassword(x))
+        TRUE
+    }, error = function(e) FALSE)
+}
