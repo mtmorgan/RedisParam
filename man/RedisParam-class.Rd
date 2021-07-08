@@ -8,6 +8,7 @@
 \alias{.close,redis_worker-method}
 \alias{.send_to,redis_manager-method}
 \alias{.recv_any,redis_manager-method}
+\alias{rpalive}
 \alias{rpworkers}
 \alias{rphost}
 \alias{rpport}
@@ -15,11 +16,9 @@
 \alias{rpisworker}
 \alias{bpisup,RedisParam-method}
 \alias{bpbackend,RedisParam-method}
-\alias{bpbackend<-,RedisParam,RedisBackend-method}
 \alias{bpstart,RedisParam-method}
 \alias{bpstop,RedisParam-method}
 \alias{bpstopall}
-\alias{bpstopall,RedisParam-method}
 \alias{bpworkers,RedisParam-method}
 \title{Enable redis-based parallel evaluation in BiocParallel}
 \usage{
@@ -42,6 +41,8 @@ RedisParam(
   is.worker = NA
 )
 
+rpalive(x)
+
 rpworkers(is.worker)
 
 rphost(x)
@@ -56,15 +57,11 @@ rpisworker(x)
 
 \S4method{bpbackend}{RedisParam}(x)
 
-\S4method{bpbackend}{RedisParam,RedisBackend}(x) <- value
-
 \S4method{bpstart}{RedisParam}(x, ...)
 
 \S4method{bpstop}{RedisParam}(x)
 
 bpstopall(x)
-
-\S4method{bpstopall}{RedisParam}(x)
 
 \S4method{bpworkers}{RedisParam}(x)
 }
@@ -111,7 +108,7 @@ or, by default, `NA_character_` (no password).}
 (\code{TRUE}), manager-only (\code{FALSE}), or manager and
 worker (\code{NA}, default) connections.}
 
-\item{x}{A `RedisParam` instance.}
+\item{x}{A `RedisParam` object.}
 
 \item{\dots}{ignored.}
 }
@@ -144,6 +141,10 @@ Use an instance of `RedisParam()` for interactive parallel
     evaluation on the manager. See the vignette for possible
     scenarios.
 
+`rpalive()` tests whether it is possible to connect to a
+    redis server using the host, port, and password in the
+    `RedisParam` object.
+
 `rpworkers()` determines the number of workers using
     `snowWorkers()` if workers are created dynamically, or a fixed
     maximum (currently 1000) if workers are listening on a queue.
@@ -165,8 +166,11 @@ Use an instance of `RedisParam()` for interactive parallel
     workers launched independently, with `is.worker = TRUE`.
 }
 \examples{
-res <- bplapply(1:20, function(i) Sys.getpid(), BPPARAM = RedisParam())
-table(unlist(res))
+param <- RedisParam()
+if (rpalive(param)) {
+    res <- bplapply(1:20, function(i) Sys.getpid(), BPPARAM = param)
+    table(unlist(res))
+}
 
 \dontrun{
 ## start workers in background proocess(es)

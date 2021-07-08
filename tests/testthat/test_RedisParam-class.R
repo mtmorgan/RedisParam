@@ -4,9 +4,9 @@ test_that("RedisParam constructor works", {
         c(REDIS_HOST = "1.2.3.4", REDIS_PORT = 123L, REDIS_PASSWORD = "123"),
         RedisParam()
     )
-    expect_identical("1.2.3.4", .redis_host(p))
-    expect_identical(123L, .redis_port(p))
-    expect_identical("123", .redis_password(p))
+    expect_identical("1.2.3.4", rphost(p))
+    expect_identical(123L, rpport(p))
+    expect_identical("123", rppassword(p))
 
     ## Test the default constructor
     ## There might exist environment variables
@@ -21,9 +21,9 @@ test_that("RedisParam local workers", {
     p <- RedisParam()
     redisAlive <- tryCatch({
         hiredis(
-            host = .redis_host(p),
-            port = .redis_port(p),
-            password = .redis_password(p)
+            host = rphost(p),
+            port = rpport(p),
+            password = rppassword(p)
         )
         TRUE
     }, error = function(e) FALSE)

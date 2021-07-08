@@ -50,7 +50,7 @@ NULL
         worker_env$REDISPARAM_ID <- redisIds[i]
         withr::with_envvar(
             worker_env,
-            system2(rscript, shQuote(script), wait = FALSE)
+            system2(rscript, shQuote(script), stdout = FALSE, wait = FALSE)
         )
     }
 
@@ -76,43 +76,28 @@ NULL
     }
 }
 
-redis.alive <-
-    function(x)
-{
-    tryCatch({
-        hiredis(
-            host = rphost(x),
-            port = rpport(x),
-            password = rppassword(x)
-        )
-        TRUE
-    }, error = function(e) FALSE)
-}
-
 #########################
 # Class methods
 #########################
 .RedisParam$methods(
     show = function() {
         callSuper()
-        running.workers <- length(bpbackend(rp))
+        running.workers <- length(bpbackend(.self))
         if (is.null(rppassword(.self)))
             .password <- NA_character_
         else
             .password <- "*****"
 
         cat(
-            "  hostname: ", rphost(.self), "\n",
-            "  port: ", rpport(.self),
-            "; password: ", .password,
-            "; is.worker: ", rpisworker(.self), "\n",
+            "  rphost: ", rphost(.self),
+            "; rpport: ", rpport(.self),
+            "; rpisworker: ", rpisworker(.self), "\n",
+            "  rppassword: ", .password, "\n",
             sep = "")
     }
 )
 
 #' @rdname RedisParam-class
-#'
-#' @param x A `RedisParam` instance.
 #'
 #' @export
 setMethod("bpisup", "RedisParam",
@@ -132,9 +117,6 @@ setMethod("bpbackend", "RedisParam",
     x$backend
 })
 
-#' @rdname RedisParam-class
-#'
-#' @export
 setReplaceMethod("bpbackend", c("RedisParam", "RedisBackend"),
     function(x, value)
 {
@@ -155,7 +137,7 @@ setMethod("bpstart", "RedisParam",
     if (bpisup(x)) {
         return(invisible(x))
     }
-    if (!redis.alive(x)) {
+    if (!rpalive(x)) {
         .error(x, "Fail to connect with the redis server")
     }
     worker <- rpisworker(x)
@@ -201,11 +183,6 @@ setMethod("bpstop", "RedisParam",
 
 #' @rdname RedisParam-class
 #'
-#' @export
-setGeneric("bpstopall", function(x) standardGeneric("bpstopall"))
-
-#' @rdname RedisParam-class
-#'
 #' @details `bpstopall()` is used from the manager to stop redis
 #'     workers launched independently, with `is.worker = TRUE`.
 #'
@@ -232,10 +209,12 @@ setGeneric("bpstopall", function(x) standardGeneric("bpstopall"))
 #' }
 #'
 #' @export
-setMethod("bpstopall", "RedisParam",
+bpstopall <-
     function(x)
 {
+    stopifnot(is(x, "RedisParam"))
     .trace(x, "bpstopall")
+
     if (!bpisup(x))
         return(x)
 

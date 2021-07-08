@@ -122,7 +122,7 @@ RedisBackend <-
         if (!is.null(value)) {
             break
         }
-        wait_time <- difftime(Sys.time(), start_time, unit = 'secs')
+        wait_time <- difftime(Sys.time(), start_time, units = 'secs')
         if (wait_time > x$timeout) {
             stop("Redis pop operation timeout")
         }
@@ -163,6 +163,9 @@ length.RedisBackend <-
 }
 
 ## Worker
+
+#' @rdname RedisBackend-class
+#'
 #' @export
 setMethod(".recv", "RedisBackend",
     function(worker)
@@ -170,6 +173,8 @@ setMethod(".recv", "RedisBackend",
     .pop_job(worker)
 })
 
+#' @rdname RedisBackend-class
+#'
 #' @export
 setMethod(".send", "RedisBackend",
     function(worker, value)
@@ -177,6 +182,8 @@ setMethod(".send", "RedisBackend",
     .push_result(worker, value)
 })
 
+#' @rdname RedisBackend-class
+#'
 #' @export
 setMethod(".close", "RedisBackend",
     function(worker)
@@ -185,6 +192,9 @@ setMethod(".close", "RedisBackend",
 })
 
 ## Manager
+
+#' @rdname RedisBackend-class
+#'
 #' @export
 setMethod(".recv_any", "RedisBackend",
     function(backend)
@@ -193,21 +203,25 @@ setMethod(".recv_any", "RedisBackend",
     list(node = value$tag, value = value)
 })
 
+#' @rdname RedisBackend-class
+#'
 #' @export
 setMethod(".send_to", "RedisBackend",
     function(backend, node, value)
 {
     node <- bpworkers(backend)[node]
     .push(backend, node, value)
-    TRUE
+    invisible(TRUE)
 })
 
+#' @rdname RedisBackend-class
 setMethod(bpjobname, "RedisBackend",
     function(x)
 {
     x$jobname
 })
 
+#' @rdname RedisBackend-class
 setMethod(bpworkers, "RedisBackend",
     function(x)
 {

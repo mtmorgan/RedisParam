@@ -82,8 +82,11 @@
 #'     scenarios.
 #'
 #' @examples
-#' res <- bplapply(1:20, function(i) Sys.getpid(), BPPARAM = RedisParam())
-#' table(unlist(res))
+#' param <- RedisParam()
+#' if (rpalive(param)) {
+#'     res <- bplapply(1:20, function(i) Sys.getpid(), BPPARAM = param)
+#'     table(unlist(res))
+#' }
 #'
 #' @export
 RedisParam <-
@@ -126,4 +129,22 @@ RedisParam <-
     x <- do.call(.RedisParam, prototype)
     config.logger(x)
     x
+}
+
+#' @rdname RedisParam-class
+#'
+#' @param x A `RedisParam` object.
+#'
+#' @details `rpalive()` tests whether it is possible to connect to a
+#'     redis server using the host, port, and password in the
+#'     `RedisParam` object.
+#'
+#' @export
+rpalive <-
+    function(x)
+{
+    tryCatch({
+        hiredis(host = rphost(x), port = rpport(x), password = rppassword(x))
+        TRUE
+    }, error = function(e) FALSE)
 }

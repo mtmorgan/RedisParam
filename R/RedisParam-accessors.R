@@ -6,8 +6,6 @@ NULL
 
 #' @rdname RedisParam-class
 #'
-#' @param x A `RedisParam` object.
-#'
 #' @details
 #'     `rpworkers()` determines the number of workers using
 #'     `snowWorkers()` if workers are created dynamically, or a fixed
@@ -61,10 +59,18 @@ rpport <-
     function(x)
 {
     if (missing(x)) {
-        Sys.getenv("REDIS_PORT", "127.0.0.1")
+        value <- Sys.getenv("REDIS_PORT", "6379")
+        port <- as.integer(value)
+        if (is.na(port)) {
+            .error(
+                "The 'REDIS_PORT' environment variable cannot be coerced to an integer. The original value was '%s'.",
+                value
+            )
+        }
     } else {
-        x$port
+        port <- x$port
     }
+    port
 }
 
 #' @rdname RedisParam-class
@@ -77,9 +83,9 @@ rppassword <-
         Sys.getenv("REDIS_PASSWORD", NA_character_)
     } else {
         value <- x$password
-        if(is.na(value)){
+        if (is.na(value)) {
             NULL
-        }else{
+        } else {
             value
         }
     }

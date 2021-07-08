@@ -43,31 +43,42 @@ set.log.threshold <-
 .trace <-
     function(x, ...)
 {
-    flog.trace(..., name = get.logger.name(x))
+    if (bplog(x))
+        flog.trace(..., name = get.logger.name(x))
 }
 
 .debug <-
     function(x, ...)
 {
-    flog.debug(..., name = get.logger.name(x))
+    if (bplog(x))
+        flog.debug(..., name = get.logger.name(x))
 }
 
 .info <-
     function(x, ...)
 {
-    flog.info(..., name = get.logger.name(x))
+    if (bplog(x))
+        flog.info(..., name = get.logger.name(x))
 }
 
 .warn <-
-    function(x, ...)
+    function(x, fmt, ...)
 {
-    value <- flog.warn(..., name = get.logger.name(x))
-    warning(value)
+    if (bplog(x)) {
+        value <- flog.warn(fmt, ..., name = get.logger.name(x))
+    } else {
+        value <- sprintf(fmt, ...)
+    }
+    warning(value, call. = FALSE)
 }
 
 .error <-
-    function(x, ...)
+    function(x, fmt, ...)
 {
-    value <- flog.error(..., name = get.logger.name(x))
-    stop(value)
+    if (bplog(x)) {
+        value <- flog.error(fmt, ..., name = get.logger.name(x))
+    } else {
+        value <- sprintf(fmt, ...)
+    }
+    stop(value, call. = FALSE)
 }
