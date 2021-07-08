@@ -38,7 +38,7 @@ rpworkers <- function(is.worker)
 #' @export
 rphost <- function(x)
 {
-    if(missing(x)){
+    if (missing(x)) {
         Sys.getenv("REDIS_HOST", "127.0.0.1")
     }else{
         x$hostname
@@ -50,7 +50,7 @@ rphost <- function(x)
 #' @export
 rpport <- function(x)
 {
-    if(missing(x)){
+    if (missing(x)) {
         Sys.getenv("REDIS_PORT", "127.0.0.1")
     }else{
         x$port
@@ -62,11 +62,11 @@ rpport <- function(x)
 #' @export
 rppassword <- function(x)
 {
-    if(missing(x)){
+    if (missing(x)) {
         Sys.getenv("REDIS_PASSWORD", NA_character_)
     }else{
         value <- x$password
-        if(is.na(value)){
+        if (is.na(value)) {
             NULL
         }else{
             value

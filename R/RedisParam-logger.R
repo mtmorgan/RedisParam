@@ -5,7 +5,7 @@ get.logger.name <- function(x){
 
 ## Get the file used by the logger
 get.log.file <- function(x){
-    if(is.na(rpisworker(x))||!rpisworker(x)){
+    if (is.na(rpisworker(x))||!rpisworker(x)) {
         paste0("RedisParam_manager_log_", Sys.getpid())
     }else{
         paste0("RedisParam_worker_log_", Sys.getpid())
@@ -14,9 +14,9 @@ get.log.file <- function(x){
 
 config.logger <- function(x){
     logger.name <- get.logger.name(x)
-    if(bplog(x)){
+    if (bplog(x)) {
         set.log.threshold(x)
-        if(!is.na(bplogdir(x))){
+        if (!is.na(bplogdir(x))) {
             filename <- get.log.file(x)
             flog.appender(appender.file(filename),
                           name = logger.name)
