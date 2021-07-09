@@ -17,20 +17,20 @@ test_that("RedisParam constructor works", {
 
 
 test_that("RedisParam local workers", {
-    ## We only do the test if Redis is running
-    p <- RedisParam()
-    redisAlive <- tryCatch({
-        hiredis(
-            host = rphost(p),
-            port = rpport(p),
-            password = rppassword(p)
-        )
-        TRUE
-    }, error = function(e) FALSE)
-    if (redisAlive) {
-        expect_true(bpstart(p))
-        expect_true(bpisup(p))
-        expect_error(bplapply(1:2, function(i) Sys.getpid(), BPPARAM = p), NA)
-        expect_true(bpstop(p))
-    }
+    p <- RedisParam(2L)
+    skip_if_not(rpalive(p))
+
+    p <- bpstart(p)
+    expect_s4_class(p, "RedisParam")
+    expect_true(validObject(p))
+    expect_true(bpisup(p))
+
+    result <- bplapply(1:5, function(i) Sys.getpid(), BPPARAM = p)
+    expect_identical(length(result), 5L)
+    expect_identical(length(unique(unlist(result))), 2L)
+
+    p <- bpstop(p)
+    expect_s4_class(p, "RedisParam")
+    expect_true(validObject(p))
+    expect_false(bpisup(p))
 })

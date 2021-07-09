@@ -159,7 +159,8 @@ setMethod("bpstart", "RedisParam",
         .bpstart_redis_worker_in_background(x)
         .bpstart_impl(x)
     }
-    return(invisible(x))
+
+    invisible(x)
 })
 
 #' @rdname RedisParam-class
@@ -182,7 +183,8 @@ setMethod("bpstop", "RedisParam",
         bpbackend(x) <- .redisNULL()
     }
     gc()                                # close connections
-    TRUE
+
+    invisible(x)
 })
 
 #' @rdname RedisParam-class
