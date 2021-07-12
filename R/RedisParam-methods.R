@@ -82,20 +82,28 @@ NULL
 #########################
 .RedisParam$methods(
     show = function() {
+        ## Temporary disable the log
+        if(bplog(.self)){
+            bplog(.self) <- FALSE
+            on.exit(
+                bplog(.self) <- TRUE
+            )
+        }
+
+
         callSuper()
         running.workers <- length(bpbackend(.self))
         if (is.null(rppassword(.self)))
             .password <- NA_character_
         else
             .password <- "*****"
-
         cat(
             "  rphost: ", rphost(.self),
             "; rpport: ", rpport(.self),
             "; rppassword: ", .password, "\n",
             "  rpisworker: ", rpisworker(.self),
             if (!isTRUE(rpisworker(.self)))
-                "; running workers: ", bpnworkers(bpbackend(.self)),
+                paste0("; running workers: ", bpnworkers(bpbackend(.self))),
             "\n",
             sep = "")
     }
@@ -234,3 +242,12 @@ bpstopall <-
     gc()
     x
 }
+
+
+setReplaceMethod("bplog", c("RedisParam", "logical"),
+                 function(x, value)
+                 {
+                     x$log <- value
+                     x
+                 })
+
