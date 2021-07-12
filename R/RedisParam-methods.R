@@ -82,6 +82,7 @@ NULL
 #########################
 .RedisParam$methods(
     show = function() {
+        callSuper()
         ## Temporary disable the log
         if(bplog(.self)){
             bplog(.self) <- FALSE
@@ -90,8 +91,6 @@ NULL
             )
         }
 
-
-        callSuper()
         running.workers <- length(bpbackend(.self))
         if (is.null(rppassword(.self)))
             .password <- NA_character_
@@ -229,18 +228,20 @@ bpstopall <-
     stopifnot(is(x, "RedisParam"))
     .trace(x, "bpstopall")
 
-    if (!bpisup(x))
-        return(x)
-
-    worker <- rpisworker(x)
-    if (isTRUE(worker)) {
+    if (isTRUE(rpisworker(x))) {
         .error("use 'bpstopall()' from manager, not worker")
-    } else {
-        .bpstop_impl(x)                 # send 'DONE' to all workers
-        bpbackend(x) <- .redisNULL()
     }
+
+    if (!bpisup(x)) {
+        if (!rpalive(x))
+            return(invisible(x))
+        .bpstart_redis_manager(x)
+    }
+
+    .bpstop_impl(x)                 # send 'DONE' to all workers
+    bpbackend(x) <- .redisNULL()
     gc()
-    x
+    invisible(x)
 }
 
 

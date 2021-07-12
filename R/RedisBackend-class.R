@@ -188,6 +188,9 @@ setMethod(".send", "RedisBackend",
 setMethod(".close", "RedisBackend",
     function(worker)
 {
+    if (!identical(worker, .redisNULL())) {
+        worker$api_client$QUIT()
+    }
     invisible(NULL)
 })
 
@@ -231,3 +234,5 @@ setMethod(bpworkers, "RedisBackend",
         .all_workers(x)
     }
 })
+
+
