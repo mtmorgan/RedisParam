@@ -234,5 +234,3 @@ setMethod(bpworkers, "RedisBackend",
         .all_workers(x)
     }
 })
-
-
