@@ -56,19 +56,19 @@ RedisBackend <-
         host = host,
         port = as.integer(port),
         password = password)
-    clientName <- .client_name(jobname, type, id)
-    job_queue <- paste0("biocparallel_redis_job:", jobname)
-    result_queue <- paste0("biocparallel_redis_result:", jobname)
-    worker_list <-paste0("biocparallel_redis_workers:", jobname)
+    clientName <- .clientName(jobname, type, id)
+    jobQueue <- paste0("biocparallel_redis_job:", jobname)
+    resultQueue <- paste0("biocparallel_redis_result:", jobname)
+    workerList <-paste0("biocparallel_redis_workers:", jobname)
 
 
     x <- structure(
         list(
             api_client = api_client,
             jobname = jobname,
-            job_queue = job_queue,
-            result_queue = result_queue,
-            worker_list = worker_list,
+            jobQueue = jobQueue,
+            resultQueue = resultQueue,
+            workerList = workerList,
             timeout = as.integer(timeout),
             type = type,
             id = id
@@ -78,32 +78,35 @@ RedisBackend <-
 
     .setClientName(x, clientName)
     if(type == "worker"){
-        .setAdd(x, worker_list, id)
+        .addWorkerToJob(x)
+    }else{
+        .delete(x, workerList)
     }
 x
 }
+
 
 .jobCacheQueue <- function(id){
     paste0("job_cache_queue:", id)
 }
 
-.client_name_prefix <-
+.clientNamePrefix <-
     function(jobname, type)
 {
     paste0(jobname, "_redis_", type, "_")
 }
 
-.client_name <-
+.clientName <-
     function(jobname, type, id)
 {
-    paste0(.client_name_prefix(jobname, type), id)
+    paste0(.clientNamePrefix(jobname, type), id)
 }
 
 ## regmatches
-.all_workers <-
+.allWorkers <-
     function(x)
 {
-    prefix <- .client_name_prefix(x$jobname, "worker")
+    prefix <- .clientNamePrefix(x$jobname, "worker")
     clients <- .listClients(x)
     idx <- gregexpr(paste0(" name=", prefix, ".+? "), clients)
     clientsNames <- regmatches(clients, idx)[[1]]
@@ -133,8 +136,7 @@ x
     .value
 }
 
-## The wrapper function for the Redis APIs
-
+## The Redis APIs
 .setClientName <- function(x, name){
     x$api_client$CLIENT_SETNAME(name)
 }
@@ -217,11 +219,19 @@ x
         errorMsg = "Redis pop operation timeout"
     )
     unserialize(value[[2]])
+    }
+
+.addWorkerToJob <- function(x){
+    .setAdd(x, x$workerList, x$id)
 }
 
+.removeWorkerFromJob <- function(x, worker){
+    workerList <- x$workerList
+    .setRemove(x, workerList, worker)
+}
 .resubmit_missing_jobs <- function(x){
-    queueName <- x$result_queue
-    workerList <- x$worker_list
+    queueName <- x$resultQueue
+    workerList <- x$workerList
     connectedWorkers <- bpworkers(x)
     registeredWorkers <- .setValues(x, workerList)
     deadWorkers <- setdiff(registeredWorkers, connectedWorkers)
@@ -235,7 +245,7 @@ x
             .move(
                 x,
                 source = cacheQueue,
-                dest = x$job_queue
+                dest = x$jobQueue
             )
         }else{
             if (queueLen != 0L) {
@@ -252,7 +262,7 @@ x
     .wait_until_success({
         queueName <- ifelse(
             .queueLen(x, id) == 0,
-            x$job_queue,
+            x$jobQueue,
             id)
         .move(
             x,
@@ -272,7 +282,7 @@ x
     value <- .wait_until_success(
         .pop_raw(
             x,
-            queue = x$result_queue
+            queue = x$resultQueue
         ),
         timeout = x$timeout,
         errorMsg = "Redis pop operation timeout",
@@ -284,7 +294,7 @@ x
 # .push_job <-
 #     function(x, value)
 # {
-#     .push(x, x$job_queue, value)
+#     .push(x, x$jobQueue, value)
 # }
 
 .push_result <-
@@ -292,7 +302,7 @@ x
 {
     cacheQueue <- .jobCacheQueue(x$id)
     .delete(x, cacheQueue)
-    .push(x, x$result_queue, value)
+    .push(x, x$resultQueue, value)
 }
 
 
@@ -372,7 +382,7 @@ setMethod(bpworkers, "RedisBackend",
     if (identical(x, .redisNULL())) {
         character()
     } else {
-        .all_workers(x)
+        .allWorkers(x)
     }
 })
 
@@ -381,8 +391,8 @@ setMethod(bpworkers, "RedisBackend",
 bpstatus <- function(x){
     if(is(x, "RedisParam"))
         x <- bpbackend(x)
-    jobs <- .queueLen(x, x$job_queue)
-    workers <- .setValues(x, x$worker_list)
+    jobs <- .queueLen(x, x$jobQueue)
+    workers <- .setValues(x, x$workerList)
     workerStatus <- lapply(
         workers,
         function(id) .queueLen(x, .jobCacheQueue(id))
