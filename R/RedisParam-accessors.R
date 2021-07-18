@@ -80,14 +80,14 @@ rppassword <-
     function(x)
 {
     if (missing(x)) {
-        Sys.getenv("REDIS_PASSWORD", NULL)
+        value <- Sys.getenv("REDIS_PASSWORD", NA_character_)
     } else {
         value <- x$password
-        if (is.na(value)) {
-            NULL
-        } else {
-            value
-        }
+    }
+    if (is.na(value)) {
+        NULL
+    } else {
+        value
     }
 }
 
