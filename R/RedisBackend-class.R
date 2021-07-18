@@ -39,7 +39,7 @@ setOldClass(c("redisNULL", "RedisBackend"))
 RedisBackend <-
     function(
         RedisParam = NULL, jobname = "",
-        host = "127.0.0.1", port = 6379L, password = NULL,
+        host = rphost(), port = rpport(), password = rppassword(),
         timeout = 2592000L, type = c("manager", "worker")
     )
 {
@@ -55,7 +55,7 @@ RedisBackend <-
     clientName <- .clientName(jobname, type, id)
     jobQueue <- paste0("biocparallel_redis_job:", jobname)
     resultQueue <- paste0("biocparallel_redis_result:", jobname)
-    workerList <-paste0("biocparallel_redis_workers:", jobname)
+    workerQueue <-paste0("biocparallel_redis_workers:", jobname)
 
     api_client <- hiredis(
         host = host,
@@ -69,7 +69,7 @@ RedisBackend <-
             jobname = jobname,
             jobQueue = jobQueue,
             resultQueue = resultQueue,
-            workerList = workerList,
+            workerQueue = workerQueue,
             timeout = as.integer(timeout),
             type = type,
             id = id
@@ -104,17 +104,6 @@ RedisBackend <-
 }
 
 ## Utils
-.allWorkers <-
-    function(x)
-{
-    prefix <- .clientNamePrefix(x$jobname, "worker")
-    clients <- .listClients(x)
-    idx <- gregexpr(paste0(" name=", prefix, ".+? "), clients)
-    clientsNames <- regmatches(clients, idx)[[1]]
-    ## Remove the prefix and the tailing space
-    substring(clientsNames, nchar(prefix) + 7, nchar(clientsNames) - 1)
-}
-
 .wait_until_success <-
     function(expr, timeout,
              errorMsg, operationWhileWaiting = NULL)
@@ -158,19 +147,19 @@ RedisBackend <-
     )
 }
 
-.pop <-
-    function(x, queue, checkTimeout = 1L)
-{
-    value <- .wait_until_success(
-        x$api_client$BRPOP(
-            queue = queue,
-            timeout = checkTimeout
-        ),
-        timeout = x$timeout,
-        errorMsg = "Redis pop operation timeout"
-    )
-    unserialize(value[[2]])
-}
+# .pop <-
+#     function(x, queue, checkTimeout = 1L)
+# {
+#     value <- .wait_until_success(
+#         x$api_client$BRPOP(
+#             key = queue,
+#             timeout = checkTimeout
+#         ),
+#         timeout = x$timeout,
+#         errorMsg = "Redis pop operation timeout"
+#     )
+#     unserialize(value[[2]])
+# }
 
 .move <- function(x, source, dest, timeout = 1L){
     value <- x$api_client$BRPOPLPUSH(
@@ -209,7 +198,7 @@ RedisBackend <-
     if (x$clientName %in% .allWorkers(x)) {
         stop("Name conflict has been found for the worker <", x$id,">")
     }
-    .setAdd(x, x$workerList, x$id)
+    .setAdd(x, x$workerQueue, x$id)
     cacheQueue <- .jobCacheQueue(x$id)
     if (.queueLen(x, cacheQueue) != 0) {
         warning("An unfinished job has been found for the worker <", x$id,">")
@@ -218,15 +207,12 @@ RedisBackend <-
 }
 
 .initializeManager <- function(x){
-    workers <- .setValues(x, x$workerList)
-    deadWorkers <- setdiff(workers, bpworkers(x))
+    deadWorkers <- .listDeadWorkers(x)
     for (id in deadWorkers) {
-        cacheQueue <- .jobCacheQueue(id)
-        if (.queueLen(x, cacheQueue) != 0) {
+        if (.isWorkerBusy(x, id)) {
             warning("An unfinished job has been found for the worker <", id,">")
         }
-        .delete(x, cacheQueue)
-        .setRemove(x, x$workerList, id)
+        .removeWorkerFromJob(x, id)
     }
     if (.queueLen(x, x$jobQueue) != 0) {
         warning("The job queue is not empty, cleaning up")
@@ -238,44 +224,57 @@ RedisBackend <-
     }
 }
 
-
-
-
-
-.removeWorkerFromJob <- function(x, worker){
-    workerList <- x$workerList
-    .setRemove(x, workerList, worker)
+.allWorkers <-
+    function(x)
+{
+    prefix <- .clientNamePrefix(x$jobname, "worker")
+    clients <- .listClients(x)
+    idx <- gregexpr(paste0(" name=", prefix, ".+? "), clients)
+    clientsNames <- regmatches(clients, idx)[[1]]
+    ## Remove the prefix and the tailing space
+    substring(clientsNames, nchar(prefix) + 7, nchar(clientsNames) - 1)
 }
 
-.resubmit_missing_jobs <- function(x){
-    queueName <- x$resultQueue
-    workerList <- x$workerList
-    connectedWorkers <- bpworkers(x)
-    registeredWorkers <- .setValues(x, workerList)
-    deadWorkers <- setdiff(registeredWorkers, connectedWorkers)
+.listDeadWorkers <- function(x){
+    workers <- .setValues(x, x$workerQueue)
+    deadWorkers <- setdiff(workers, bpworkers(x))
+    deadWorkers
+}
+
+.isWorkerBusy <- function(x, workerId){
+    cacheQueue <- .jobCacheQueue(workerId)
+    .queueLen(x, cacheQueue) != 0
+}
+
+.removeWorkerFromJob <- function(x, workerId){
+    cacheQueue <- .jobCacheQueue(workerId)
+    .delete(x, cacheQueue)
+    workerQueue <- x$workerQueue
+    .setRemove(x, workerQueue, workerId)
+}
+
+.resubmitMissingJobs <- function(x){
+    deadWorkers <- .listDeadWorkers(x)
     if (length(deadWorkers)>0) {
-        message(length(deadWorkers), " are missing from the job queue.")
+        message(length(deadWorkers), " workers are missing from the job queue.")
     }
     ## If there are dead workers, we check if they have any job
     for (id in deadWorkers) {
-        cacheQueue <- .jobCacheQueue(id)
-        queueLen <- .queueLen(x, cacheQueue)
         ## queueLen is 1 means it is running a job
-        if (queueLen == 1) {
+        if (.isWorkerBusy(x, id)) {
             message("A missing job is found, resubmitting")
+            cacheQueue <- .jobCacheQueue(id)
             .move(
                 x,
                 source = cacheQueue,
                 dest = x$jobQueue
             )
-        }else{
-           .delete(x, cacheQueue)
         }
-        .setRemove(x, workerList, id)
+        .removeWorkerFromJob(x, id)
     }
 }
 
-.pop_job <- function(x){
+.popJob <- function(x){
     cacheQueue <- .jobCacheQueue(x$id)
     id <- x$id
     .wait_until_success({
@@ -295,22 +294,22 @@ RedisBackend <-
     )
 }
 
-.pop_result <-
-    function(x)
+.popResult <-
+    function(x, checkTimeout = 1L)
 {
     value <- .wait_until_success(
-        .pop(
-            x,
-            queue = x$resultQueue
+        x$api_client$BRPOP(
+            key = x$resultQueue,
+            timeout = checkTimeout
         ),
         timeout = x$timeout,
         errorMsg = "Redis pop operation timeout",
-        operationWhileWaiting = .resubmit_missing_jobs(x)
+        operationWhileWaiting = .resubmitMissingJobs(x)
     )
     unserialize(value[[2]])
 }
 
-.push_result <-
+.pushResult <-
     function(x, value)
 {
     cacheQueue <- .jobCacheQueue(x$id)
@@ -335,7 +334,7 @@ length.RedisBackend <-
 setMethod(".recv", "RedisBackend",
     function(worker)
 {
-    .pop_job(worker)
+    .popJob(worker)
 })
 
 #' @rdname RedisBackend-class
@@ -344,7 +343,7 @@ setMethod(".recv", "RedisBackend",
 setMethod(".send", "RedisBackend",
     function(worker, value)
 {
-    .push_result(worker, value)
+    .pushResult(worker, value)
 })
 
 #' @rdname RedisBackend-class
@@ -367,7 +366,7 @@ setMethod(".close", "RedisBackend",
 setMethod(".recv_any", "RedisBackend",
     function(backend)
 {
-    value <- .pop_result(backend)
+    value <- .popResult(backend)
     list(node = value$tag, value = value)
 })
 
@@ -378,7 +377,7 @@ setMethod(".send_to", "RedisBackend",
     function(backend, node, value)
 {
     node <- bpworkers(backend)[node]
-    .push(x, node, value)
+    .push(backend, node, value)
     invisible(TRUE)
 })
 
@@ -407,7 +406,7 @@ bpstatus <- function(x){
         x <- bpbackend(x)
     njobs <- .queueLen(x, x$jobQueue)
     nresults <- .queueLen(x, x$resultQueue)
-    workers <- .setValues(x, x$workerList)
+    workers <- .setValues(x, x$workerQueue)
     workerStatus <- lapply(
         workers,
         function(id) .queueLen(x, .jobCacheQueue(id))
