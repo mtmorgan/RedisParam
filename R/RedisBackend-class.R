@@ -52,19 +52,20 @@ RedisBackend <-
     }
     type <- match.arg(type)
     id <- Sys.getenv("REDISPARAM_ID", ipcid())
-    api_client <- hiredis(
-        host = host,
-        port = as.integer(port),
-        password = password)
     clientName <- .clientName(jobname, type, id)
     jobQueue <- paste0("biocparallel_redis_job:", jobname)
     resultQueue <- paste0("biocparallel_redis_result:", jobname)
     workerList <-paste0("biocparallel_redis_workers:", jobname)
 
+    api_client <- hiredis(
+        host = host,
+        port = as.integer(port),
+        password = password)
 
     x <- structure(
         list(
             api_client = api_client,
+            clientName = clientName,
             jobname = jobname,
             jobQueue = jobQueue,
             resultQueue = resultQueue,
@@ -76,16 +77,16 @@ RedisBackend <-
         class = "RedisBackend"
     )
 
-    .setClientName(x, clientName)
     if(type == "worker"){
-        .addWorkerToJob(x)
+        .initializeWorker(x)
     }else{
-        .delete(x, workerList)
+        .initializeManager(x)
     }
-x
+    .setClientName(x, clientName)
+    x
 }
 
-
+## Naming rule
 .jobCacheQueue <- function(id){
     paste0("job_cache_queue:", id)
 }
@@ -102,7 +103,7 @@ x
     paste0(.clientNamePrefix(jobname, type), id)
 }
 
-## regmatches
+## Utils
 .allWorkers <-
     function(x)
 {
@@ -136,7 +137,7 @@ x
     .value
 }
 
-## The Redis APIs
+## Redis APIs
 .setClientName <- function(x, name){
     x$api_client$CLIENT_SETNAME(name)
 }
@@ -149,18 +150,26 @@ x
     x$api_client$QUIT()
 }
 
-.push_raw <- function(x, queue, value){
+.push <- function(x, queue, value){
+    value <- serialize(value, NULL, xdr = FALSE)
      x$api_client$LPUSH(
         key = queue,
         value = value
     )
 }
 
-.pop_raw <- function(x, queue, timeout = 1L){
-     x$api_client$BRPOP(
-            key = queue,
-            timeout = timeout
-        )
+.pop <-
+    function(x, queue, checkTimeout = 1L)
+{
+    value <- .wait_until_success(
+        x$api_client$BRPOP(
+            queue = queue,
+            timeout = checkTimeout
+        ),
+        timeout = x$timeout,
+        errorMsg = "Redis pop operation timeout"
+    )
+    unserialize(value[[2]])
 }
 
 .move <- function(x, source, dest, timeout = 1L){
@@ -196,47 +205,59 @@ x
 }
 
 ## The high level function built upon the wrappers
-.push <-
-    function(x, queue, value)
-{
-    value <- serialize(value, NULL, xdr = FALSE)
-    .push_raw(
-        x,
-        queue = queue,
-        value = value
-    )
-}
-
-.pop <-
-    function(x, queue, raw = FALSE)
-{
-    value <- .wait_until_success(
-        .pop_raw(
-            x,
-            queue = queue
-        ),
-        timeout = x$timeout,
-        errorMsg = "Redis pop operation timeout"
-    )
-    unserialize(value[[2]])
+.initializeWorker <- function(x){
+    if (x$clientName %in% .allWorkers(x)) {
+        stop("Name conflict has been found for the worker <", x$id,">")
     }
-
-.addWorkerToJob <- function(x){
     .setAdd(x, x$workerList, x$id)
+    cacheQueue <- .jobCacheQueue(x$id)
+    if (.queueLen(x, cacheQueue) != 0) {
+        warning("An unfinished job has been found for the worker <", x$id,">")
+        .delete(x, cacheQueue)
+    }
 }
+
+.initializeManager <- function(x){
+    workers <- .setValues(x, x$workerList)
+    deadWorkers <- setdiff(workers, bpworkers(x))
+    for (id in deadWorkers) {
+        cacheQueue <- .jobCacheQueue(id)
+        if (.queueLen(x, cacheQueue) != 0) {
+            warning("An unfinished job has been found for the worker <", id,">")
+        }
+        .delete(x, cacheQueue)
+        .setRemove(x, x$workerList, id)
+    }
+    if (.queueLen(x, x$jobQueue) != 0) {
+        warning("The job queue is not empty, cleaning up")
+        .delete(x, x$jobQueue)
+    }
+    if (.queueLen(x, x$resultQueue) != 0) {
+        warning("The result queue is not empty, cleaning up")
+        .delete(x, x$resultQueue)
+    }
+}
+
+
+
+
 
 .removeWorkerFromJob <- function(x, worker){
     workerList <- x$workerList
     .setRemove(x, workerList, worker)
 }
+
 .resubmit_missing_jobs <- function(x){
     queueName <- x$resultQueue
     workerList <- x$workerList
     connectedWorkers <- bpworkers(x)
     registeredWorkers <- .setValues(x, workerList)
     deadWorkers <- setdiff(registeredWorkers, connectedWorkers)
+    if (length(deadWorkers)>0) {
+        message(length(deadWorkers), " are missing from the job queue.")
+    }
     ## If there are dead workers, we check if they have any job
-    for(id in deadWorkers){
+    for (id in deadWorkers) {
         cacheQueue <- .jobCacheQueue(id)
         queueLen <- .queueLen(x, cacheQueue)
         ## queueLen is 1 means it is running a job
@@ -248,11 +269,9 @@ x
                 dest = x$jobQueue
             )
         }else{
-            if (queueLen != 0L) {
-                warning("Corrupted job queue for a worker is found!")
-                .delete(x, cacheQueue)
-            }
+           .delete(x, cacheQueue)
         }
+        .setRemove(x, workerList, id)
     }
 }
 
@@ -280,7 +299,7 @@ x
     function(x)
 {
     value <- .wait_until_success(
-        .pop_raw(
+        .pop(
             x,
             queue = x$resultQueue
         ),
@@ -291,18 +310,13 @@ x
     unserialize(value[[2]])
 }
 
-# .push_job <-
-#     function(x, value)
-# {
-#     .push(x, x$jobQueue, value)
-# }
-
 .push_result <-
     function(x, value)
 {
     cacheQueue <- .jobCacheQueue(x$id)
     .delete(x, cacheQueue)
     .push(x, x$resultQueue, value)
+
 }
 
 
@@ -364,7 +378,7 @@ setMethod(".send_to", "RedisBackend",
     function(backend, node, value)
 {
     node <- bpworkers(backend)[node]
-    .push(backend, node, value)
+    .push(x, node, value)
     invisible(TRUE)
 })
 
@@ -391,12 +405,14 @@ setMethod(bpworkers, "RedisBackend",
 bpstatus <- function(x){
     if(is(x, "RedisParam"))
         x <- bpbackend(x)
-    jobs <- .queueLen(x, x$jobQueue)
+    njobs <- .queueLen(x, x$jobQueue)
+    nresults <- .queueLen(x, x$resultQueue)
     workers <- .setValues(x, x$workerList)
     workerStatus <- lapply(
         workers,
         function(id) .queueLen(x, .jobCacheQueue(id))
     )
-    list(jobs = jobs, workers = workers, workerStatus = workerStatus)
+    list(njobs = njobs, nresults = nresults,
+         workers = workers, workerStatus = workerStatus)
 }
 
