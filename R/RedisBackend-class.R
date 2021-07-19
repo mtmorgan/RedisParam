@@ -405,4 +405,3 @@ bpstatus <- function(x){
     list(njobs = njobs, nresults = nresults,
          workers = workers, workerStatus = workerStatus)
 }
-

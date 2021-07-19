@@ -83,8 +83,8 @@ NULL
 .RedisParam$methods(
     show = function() {
         callSuper()
-        ## Temporary disable the log
-        if(bplog(.self)){
+        ## Temporarily disable the log
+        if (bplog(.self)) {
             bplog(.self) <- FALSE
             on.exit(
                 bplog(.self) <- TRUE
@@ -240,15 +240,15 @@ bpstopall <-
 
     .bpstop_impl(x)                 # send 'DONE' to all workers
     bpbackend(x) <- .redisNULL()
-    gc()
+    gc()                            # close connections
+
     invisible(x)
 }
 
-
 setReplaceMethod("bplog", c("RedisParam", "logical"),
-                 function(x, value)
-                 {
-                     x$log <- value
-                     x
-                 })
+    function(x, value)
+{
+    x$log <- value
+    x
+})
 
