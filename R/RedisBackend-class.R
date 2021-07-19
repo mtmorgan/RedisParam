@@ -147,20 +147,6 @@ RedisBackend <-
     )
 }
 
-# .pop <-
-#     function(x, queue, checkTimeout = 1L)
-# {
-#     value <- .wait_until_success(
-#         x$api_client$BRPOP(
-#             key = queue,
-#             timeout = checkTimeout
-#         ),
-#         timeout = x$timeout,
-#         errorMsg = "Redis pop operation timeout"
-#     )
-#     unserialize(value[[2]])
-# }
-
 .move <- function(x, source, dest, timeout = 1L){
     value <- x$api_client$BRPOPLPUSH(
         source = source,
@@ -274,6 +260,10 @@ RedisBackend <-
     }
 }
 
+.pushJob <- function(x, workerId, value){
+    .push(x, workerId, value)
+}
+
 .popJob <- function(x){
     cacheQueue <- .jobCacheQueue(x$id)
     id <- x$id
@@ -294,6 +284,15 @@ RedisBackend <-
     )
 }
 
+.pushResult <-
+    function(x, value)
+{
+    cacheQueue <- .jobCacheQueue(x$id)
+    .delete(x, cacheQueue)
+    .push(x, x$resultQueue, value)
+
+}
+
 .popResult <-
     function(x, checkTimeout = 1L)
 {
@@ -309,14 +308,6 @@ RedisBackend <-
     unserialize(value[[2]])
 }
 
-.pushResult <-
-    function(x, value)
-{
-    cacheQueue <- .jobCacheQueue(x$id)
-    .delete(x, cacheQueue)
-    .push(x, x$resultQueue, value)
-
-}
 
 
 #' @export
@@ -377,7 +368,7 @@ setMethod(".send_to", "RedisBackend",
     function(backend, node, value)
 {
     node <- bpworkers(backend)[node]
-    .push(backend, node, value)
+    .pushJob(backend, node, value)
     invisible(TRUE)
 })
 
