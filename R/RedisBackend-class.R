@@ -87,7 +87,9 @@ RedisBackend <-
 }
 
 ## Naming rule
-.jobCacheQueue <- function(id){
+.jobCacheQueue <-
+    function(id)
+{
     paste0("job_cache_queue:", id)
 }
 
@@ -127,19 +129,27 @@ RedisBackend <-
 }
 
 ## Redis APIs
-.setClientName <- function(x, name){
+.setClientName <-
+    function(x, name)
+{
     x$api_client$CLIENT_SETNAME(name)
 }
 
-.listClients <- function(x){
+.listClients <-
+    function(x)
+{
     x$api_client$CLIENT_LIST()
 }
 
-.quit <- function(x){
+.quit <-
+    function(x)
+{
     x$api_client$QUIT()
 }
 
-.push <- function(x, queue, value){
+.push <-
+    function(x, queue, value)
+{
     value <- serialize(value, NULL, xdr = FALSE)
      x$api_client$LPUSH(
         key = queue,
@@ -147,7 +157,9 @@ RedisBackend <-
     )
 }
 
-.move <- function(x, source, dest, timeout = 1L){
+.move <-
+    function(x, source, dest, timeout = 1L)
+{
     value <- x$api_client$BRPOPLPUSH(
         source = source,
         destination = dest,
@@ -159,28 +171,40 @@ RedisBackend <-
         unserialize(value)
 }
 
-.delete <- function(x, key){
+.delete <-
+    function(x, key)
+{
     x$api_client$DEL(key)
 }
 
-.queueLen <- function(x, key){
+.queueLen <-
+    function(x, key)
+{
     x$api_client$LLEN(key)
 }
 
-.setAdd <- function(x, key, values){
+.setAdd <-
+    function(x, key, values)
+{
     x$api_client$SADD(key, values)
 }
 
-.setValues <- function(x, key){
+.setValues <-
+    function(x, key)
+{
     unlist(x$api_client$SSCAN(key, 0, COUNT = .Machine$integer.max)[[2]])
 }
 
-.setRemove <- function(x, key, values){
+.setRemove <-
+    function(x, key, values)
+{
     x$api_client$SREM(key, values)
 }
 
 ## The high level function built upon the wrappers
-.initializeWorker <- function(x){
+.initializeWorker <-
+    function(x)
+{
     if (x$clientName %in% .allWorkers(x)) {
         stop("Name conflict has been found for the worker <", x$id,">")
     }
@@ -192,7 +216,9 @@ RedisBackend <-
     }
 }
 
-.initializeManager <- function(x){
+.initializeManager <-
+    function(x)
+{
     deadWorkers <- .listDeadWorkers(x)
     for (id in deadWorkers) {
         if (.isWorkerBusy(x, id)) {
@@ -239,7 +265,9 @@ RedisBackend <-
     .setRemove(x, workerQueue, workerId)
 }
 
-.resubmitMissingJobs <- function(x){
+.resubmitMissingJobs <-
+    function(x)
+{
     deadWorkers <- .listDeadWorkers(x)
     if (length(deadWorkers)>0) {
         message(length(deadWorkers), " workers are missing from the job queue.")
@@ -260,11 +288,15 @@ RedisBackend <-
     }
 }
 
-.pushJob <- function(x, workerId, value){
+.pushJob <-
+    function(x, workerId, value)
+{
     .push(x, workerId, value)
 }
 
-.popJob <- function(x){
+.popJob <-
+    function(x)
+{
     cacheQueue <- .jobCacheQueue(x$id)
     id <- x$id
     .wait_until_success({
@@ -390,9 +422,11 @@ setMethod(bpworkers, "RedisBackend",
     }
 })
 
-## Show the job queue status
+## Show the backend status
 ## For debugging purpose only
-bpstatus <- function(x){
+bpstatus <-
+    function(x)
+{
     if(is(x, "RedisParam"))
         x <- bpbackend(x)
     njobs <- .queueLen(x, x$jobQueue)
