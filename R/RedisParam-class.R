@@ -103,9 +103,8 @@ RedisParam <-
 {
     if (!is.null(RNGseed))
         RNGseed <- as.integer(RNGseed)
-    if (!nzchar(redis.password)||is.null(redis.password)) {
+    if (!nzchar(redis.password) || is.null(redis.password))
         redis.password <- NA_character_
-    }
 
     prototype <- .prototype_update(
         .RedisParam_prototype,

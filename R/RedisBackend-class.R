@@ -77,11 +77,11 @@ RedisBackend <-
         class = "RedisBackend"
     )
 
-    if(type == "worker"){
+    if (type == "worker")
         .initializeWorker(x)
-    }else{
+    else
         .initializeManager(x)
-    }
+
     .setClientName(x, clientName)
     x
 }
@@ -114,16 +114,15 @@ RedisBackend <-
     expr <- substitute(expr)
     operationWhileWaiting <- substitute(operationWhileWaiting)
     start_time <- Sys.time()
-    repeat{
+    repeat {
         .value <- eval(expr, envir = frame)
-        if (!is.null(.value)) {
+        if (!is.null(.value))
             break
-        }
+
         eval(operationWhileWaiting, envir = frame)
         wait_time <- difftime(Sys.time(), start_time, units = 'secs')
-        if (wait_time > timeout) {
+        if (wait_time > timeout)
             stop(errorMsg)
-        }
     }
     .value
 }
@@ -151,10 +150,7 @@ RedisBackend <-
     function(x, queue, value)
 {
     value <- serialize(value, NULL, xdr = FALSE)
-     x$api_client$LPUSH(
-        key = queue,
-        value = value
-    )
+    x$api_client$LPUSH(key = queue, value = value)
 }
 
 .move <-
@@ -165,7 +161,7 @@ RedisBackend <-
         destination = dest,
         timeout = timeout
     )
-    if(is.null(value))
+    if (is.null(value))
         NULL
     else
         unserialize(value)
@@ -177,7 +173,7 @@ RedisBackend <-
     x$api_client$DEL(key)
 }
 
-.queueLen <-
+.queueLength <-
     function(x, key)
 {
     x$api_client$LLEN(key)
@@ -205,13 +201,13 @@ RedisBackend <-
 .initializeWorker <-
     function(x)
 {
-    if (x$clientName %in% .allWorkers(x)) {
-        stop("Name conflict has been found for the worker <", x$id,">")
-    }
+    if (x$clientName %in% .allWorkers(x))
+        stop("Name conflict has been found for the worker '", x$id, "'")
+
     .setAdd(x, x$workerQueue, x$id)
     cacheQueue <- .jobCacheQueue(x$id)
-    if (.queueLen(x, cacheQueue) != 0) {
-        warning("An unfinished job has been found for the worker <", x$id,">")
+    if (.queueLength(x, cacheQueue) != 0) {
+        warning("An unfinished job has been found for the worker '", x$id, "'")
         .delete(x, cacheQueue)
     }
 }
@@ -222,15 +218,15 @@ RedisBackend <-
     deadWorkers <- .listDeadWorkers(x)
     for (id in deadWorkers) {
         if (.isWorkerBusy(x, id)) {
-            warning("An unfinished job has been found for the worker <", id,">")
+            warning("An unfinished job has been found for the worker '", id, "'")
         }
         .removeWorkerFromJob(x, id)
     }
-    if (.queueLen(x, x$jobQueue) != 0) {
+    if (.queueLength(x, x$jobQueue) != 0) {
         warning("The job queue is not empty, cleaning up")
         .delete(x, x$jobQueue)
     }
-    if (.queueLen(x, x$resultQueue) != 0) {
+    if (.queueLength(x, x$resultQueue) != 0) {
         warning("The result queue is not empty, cleaning up")
         .delete(x, x$resultQueue)
     }
@@ -243,6 +239,7 @@ RedisBackend <-
     clients <- .listClients(x)
     idx <- gregexpr(paste0(" name=", prefix, ".+? "), clients)
     clientsNames <- regmatches(clients, idx)[[1]]
+
     ## Remove the prefix and the tailing space
     substring(clientsNames, nchar(prefix) + 7, nchar(clientsNames) - 1)
 }
@@ -255,7 +252,7 @@ RedisBackend <-
 
 .isWorkerBusy <- function(x, workerId){
     cacheQueue <- .jobCacheQueue(workerId)
-    .queueLen(x, cacheQueue) != 0
+    .queueLength(x, cacheQueue) != 0
 }
 
 .removeWorkerFromJob <- function(x, workerId){
@@ -269,12 +266,12 @@ RedisBackend <-
     function(x)
 {
     deadWorkers <- .listDeadWorkers(x)
-    if (length(deadWorkers)>0) {
+    if (length(deadWorkers) > 0)
         message(length(deadWorkers), " workers are missing from the job queue.")
-    }
+
     ## If there are dead workers, we check if they have any job
     for (id in deadWorkers) {
-        ## queueLen is 1 means it is running a job
+        ## queueLength is 1 means it is running a job
         if (.isWorkerBusy(x, id)) {
             message("A missing job is found, resubmitting")
             cacheQueue <- .jobCacheQueue(id)
@@ -286,6 +283,8 @@ RedisBackend <-
         }
         .removeWorkerFromJob(x, id)
     }
+
+    invisible(TRUE)
 }
 
 .pushJob <-
@@ -299,20 +298,21 @@ RedisBackend <-
 {
     cacheQueue <- .jobCacheQueue(x$id)
     id <- x$id
-    .wait_until_success({
-        queueName <- ifelse(
-            .queueLen(x, id) == 0,
-            x$jobQueue,
-            id)
-        .move(
-            x,
-            source = queueName,
-            dest = cacheQueue
-        )
-    }
-    ,
-    timeout = Inf,
-    errorMsg = "Redis pop operation timeout"
+    .wait_until_success(
+        {
+            queueName <- ifelse(
+                .queueLength(x, id) == 0,
+                x$jobQueue,
+                id
+            )
+            .move(
+                x,
+                source = queueName,
+                dest = cacheQueue
+            )
+        },
+        timeout = Inf,
+        errorMsg = "Redis pop operation timeout"
     )
 }
 
@@ -322,7 +322,6 @@ RedisBackend <-
     cacheQueue <- .jobCacheQueue(x$id)
     .delete(x, cacheQueue)
     .push(x, x$resultQueue, value)
-
 }
 
 .popResult <-
@@ -339,8 +338,6 @@ RedisBackend <-
     )
     unserialize(value[[2]])
 }
-
-
 
 #' @export
 length.RedisBackend <-
@@ -375,10 +372,9 @@ setMethod(".send", "RedisBackend",
 setMethod(".close", "RedisBackend",
     function(worker)
 {
-    if (!identical(worker, .redisNULL())) {
+    if (!identical(worker, .redisNULL()))
         .quit(worker)
-    }
-    invisible(NULL)
+    invisible(TRUE)
 })
 
 ## Manager
@@ -427,15 +423,15 @@ setMethod(bpworkers, "RedisBackend",
 bpstatus <-
     function(x)
 {
-    if(is(x, "RedisParam"))
+    if (is(x, "RedisParam"))
         x <- bpbackend(x)
-    njobs <- .queueLen(x, x$jobQueue)
-    nresults <- .queueLen(x, x$resultQueue)
+    njobs <- .queueLength(x, x$jobQueue)
+    nresults <- .queueLength(x, x$resultQueue)
     workers <- .setValues(x, x$workerQueue)
-    workerStatus <- lapply(
-        workers,
-        function(id) .queueLen(x, .jobCacheQueue(id))
+    keys <- vapply(workers, .jobCacheQueue, character(1))
+    workerStatus <- mapply(.queueLength, workers, keys)
+    list(
+        njobs = njobs, nresults = nresults,
+        workers = workers, workerStatus = workerStatus
     )
-    list(njobs = njobs, nresults = nresults,
-         workers = workers, workerStatus = workerStatus)
 }

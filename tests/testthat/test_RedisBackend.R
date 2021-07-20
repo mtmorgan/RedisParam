@@ -5,8 +5,6 @@ manager <- NULL
 worker1 <- NULL
 worker2 <- NULL
 
-
-
 test_that("Creating RedisBackend", {
     expect_error(manager <<- RedisBackend(jobname = jobname, type = "manager"), NA)
     expect_error(worker1 <<- RedisBackend(jobname = jobname, type = "worker"), NA)
@@ -45,6 +43,3 @@ test_that("Job management", {
     expect_error(.pushResult(worker2, resultValue), NA)
     expect_equal(.popResult(manager), resultValue)
 })
-
-
-
