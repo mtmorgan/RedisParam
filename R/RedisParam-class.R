@@ -43,14 +43,15 @@
 #'     & workers on a queue.
 #'
 #' @param redis.hostname character(1) host name of redis server,
-#'     from system environment variable `REDIS_HOST` or, by default,
-#'     `"127.0.0.1"`.
+#'     from system environment variable `REDISPARAM_HOST` or,
+#'     by default `"127.0.0.1"`.
 #'
 #' @param redis.port integer(1) port of redis server, from system
-#'     environment variable `REDIS_PORT` or, by default, 6379.
+#'     environment variable `REDISPARAM_PORT` or, by default 6379.
 #'
 #' @param redis.password character(1) or NULL, host password of redis server
-#'     or, by default, `NA_character_` (no password).
+#'     from system environment variable `REDISPARAM_PASSWORD` or,
+#'     by default, `NA_character_` (no password).
 #'
 #' @param is.worker logical(1) \code{bpstart()} creates worker-only
 #'     (\code{TRUE}), manager-only (\code{FALSE}), or manager and

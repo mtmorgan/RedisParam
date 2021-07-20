@@ -92,14 +92,15 @@ number of workers opened by `bpstart()`.}
 \item{RNGseed}{See `?"BiocParallelParam-class"`.}
 
 \item{redis.hostname}{character(1) host name of redis server,
-from system environment variable `REDIS_HOST` or, by default,
-`"127.0.0.1"`.}
+from system environment variable `REDISPARAM_HOST` or,
+by default `"127.0.0.1"`.}
 
 \item{redis.port}{integer(1) port of redis server, from system
-environment variable `REDIS_PORT` or, by default, 6379.}
+environment variable `REDISPARAM_PORT` or, by default 6379.}
 
 \item{redis.password}{character(1) or NULL, host password of redis server
-or, by default, `NA_character_` (no password).}
+from system environment variable `REDISPARAM_PASSWORD` or,
+by default, `NA_character_` (no password).}
 
 \item{is.worker}{logical(1) \code{bpstart()} creates worker-only
 (\code{TRUE}), manager-only (\code{FALSE}), or manager and
@@ -147,15 +148,15 @@ Use an instance of `RedisParam()` for interactive parallel
     maximum (currently 1000) if workers are listening on a queue.
 
     `rphost()` reads the host name of the redis server from a
-    system environment variable `"REDIS_HOST"`, defaulting to
-    `"127.0.0.1"`. `rphost(x)` gives the host name used by `x`.
+    system environment variable `"REDISPARAM_HOST"`,
+     defaulting to `"127.0.0.1"`. `rphost(x)` gives the host name used by `x`.
 
     `rpport()` reads the port of the redis server from a system
-    environment variable `"REDIS_PORT"`, defaulting to 6379.
-    `rpport(x)` gives the port used by `x`.
+    environment variable `REDISPARAM_PORT`,
+    defaulting to 6379. `rpport(x)` gives the port used by `x`.
 
     `rppassword()` reads an (optional) password from the system
-    environment variable "REDIS_PASSWORD", defaulting to
+    environment variable `REDISPARAM_PASSWORD`, defaulting to
     `NA_character_` (no password). `rppassword(x)` gives the password
      used by `x`.
 

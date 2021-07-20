@@ -1,7 +1,9 @@
 test_that("RedisParam constructor works", {
     ## Test if the environment variables work as we expect
     p <- withr::with_envvar(
-        c(REDIS_HOST = "1.2.3.4", REDIS_PORT = 123L, REDIS_PASSWORD = "123"),
+        c(REDISPARAM_HOST = "1.2.3.4",
+          REDISPARAM_PORT = 123L,
+          REDISPARAM_PASSWORD = "123"),
         RedisParam()
     )
     expect_identical("1.2.3.4", rphost(p))

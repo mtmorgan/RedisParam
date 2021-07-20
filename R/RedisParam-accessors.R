@@ -12,15 +12,15 @@ NULL
 #'     maximum (currently 1000) if workers are listening on a queue.
 #'
 #'     `rphost()` reads the host name of the redis server from a
-#'     system environment variable `"REDIS_HOST"`, defaulting to
-#'     `"127.0.0.1"`. `rphost(x)` gives the host name used by `x`.
+#'     system environment variable `"REDISPARAM_HOST"`,
+#'      defaulting to `"127.0.0.1"`. `rphost(x)` gives the host name used by `x`.
 #'
 #'     `rpport()` reads the port of the redis server from a system
-#'     environment variable `"REDIS_PORT"`, defaulting to 6379.
-#'     `rpport(x)` gives the port used by `x`.
+#'     environment variable `REDISPARAM_PORT`,
+#'     defaulting to 6379. `rpport(x)` gives the port used by `x`.
 #'
 #'     `rppassword()` reads an (optional) password from the system
-#'     environment variable "REDIS_PASSWORD", defaulting to
+#'     environment variable `REDISPARAM_PASSWORD`, defaulting to
 #'     `NA_character_` (no password). `rppassword(x)` gives the password
 #'      used by `x`.
 #'
@@ -46,7 +46,7 @@ rphost <-
     function(x)
 {
     if (missing(x)) {
-        Sys.getenv("REDIS_HOST", "127.0.0.1")
+        Sys.getenv("REDISPARAM_HOST", "127.0.0.1")
     } else {
         x$hostname
     }
@@ -59,11 +59,11 @@ rpport <-
     function(x)
 {
     if (missing(x)) {
-        value <- Sys.getenv("REDIS_PORT", "6379")
+        value <- Sys.getenv("REDISPARAM_PORT", "6379")
         port <- as.integer(value)
         if (is.na(port)) {
             .error(
-                "The 'REDIS_PORT' environment variable cannot be coerced to an integer. The original value was '%s'.",
+                "The 'REDISPARAM_PORT' environment variable cannot be coerced to an integer. The original value was '%s'.",
                 value
             )
         }
@@ -80,7 +80,7 @@ rppassword <-
     function(x)
 {
     if (missing(x)) {
-        Sys.getenv("REDIS_PASSWORD", NA_character_)
+        Sys.getenv("REDISPARAM_PASSWORD", NA_character_)
     } else {
         value <- x$password
         if (is.na(value)) {
