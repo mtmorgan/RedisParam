@@ -1,14 +1,45 @@
 test_that("RedisParam constructor works", {
-    ## Test if the environment variables work as we expect
+    ## Test if the environment variables `REDISPARAM_XX` work as we expect
     p <- withr::with_envvar(
         c(REDISPARAM_HOST = "1.2.3.4",
           REDISPARAM_PORT = 123L,
-          REDISPARAM_PASSWORD = "123"),
+          REDISPARAM_PASSWORD = "123",
+          REDIS_HOST = "",
+          REDIS_PORT = "",
+          REDIS_PASSWORD = ""),
         RedisParam()
     )
     expect_identical("1.2.3.4", rphost(p))
     expect_identical(123L, rpport(p))
     expect_identical("123", rppassword(p))
+
+    ## Test if the fallback environment variables `REDIS_XX` work as we expect
+    p <- withr::with_envvar(
+        c(REDISPARAM_HOST = "",
+          REDISPARAM_PORT = "",
+          REDISPARAM_PASSWORD = "",
+          REDIS_HOST = "1.2.3.4",
+          REDIS_PORT = 123L,
+          REDIS_PASSWORD = "123"),
+        RedisParam()
+    )
+    expect_identical("1.2.3.4", rphost(p))
+    expect_identical(123L, rpport(p))
+    expect_identical("123", rppassword(p))
+
+    ## Test if the default constructor work as we expect
+    p <- withr::with_envvar(
+        c(REDISPARAM_HOST = "",
+          REDISPARAM_PORT = "",
+          REDISPARAM_PASSWORD = "",
+          REDIS_HOST = "",
+          REDIS_PORT = "",
+          REDIS_PASSWORD = ""),
+        RedisParam()
+    )
+    expect_identical("127.0.0.1", rphost(p))
+    expect_identical(6379L, rpport(p))
+    expect_identical(NULL, rppassword(p))
 
     ## Test the default constructor
     ## There might exist environment variables

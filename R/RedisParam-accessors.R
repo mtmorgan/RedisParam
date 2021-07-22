@@ -11,16 +11,20 @@ NULL
 #'     `snowWorkers()` if workers are created dynamically, or a fixed
 #'     maximum (currently 1000) if workers are listening on a queue.
 #'
-#'     `rphost()` reads the host name of the redis server from a
-#'     system environment variable `"REDISPARAM_HOST"`,
-#'      defaulting to `"127.0.0.1"`. `rphost(x)` gives the host name used by `x`.
+#'     `rphost()` reads the host name of the Redis server from the
+#'     system environment variable `REDISPARAM_HOST`, if the variable is
+#'     not defined, fallback to `REDIS_HOST`. Otherwise default to
+#'     `"127.0.0.1"`.
+#'     `rphost(x)` gives the host name used by `x`.
 #'
-#'     `rpport()` reads the port of the redis server from a system
-#'     environment variable `REDISPARAM_PORT`,
-#'     defaulting to 6379. `rpport(x)` gives the port used by `x`.
+#'     `rpport()` reads the port of the Redis server from a system
+#'     environment variable `REDISPARAM_PORT`, if the variable is
+#'     not defined, fallback to `REDIS_PORT`. Otherwise default to
+#'     `6379`. `rpport(x)` gives the port used by `x`.
 #'
 #'     `rppassword()` reads an (optional) password from the system
-#'     environment variable `REDISPARAM_PASSWORD`, defaulting to
+#'     environment variable `REDISPARAM_PASSWORD`, if the variable is
+#'     not defined, fallback to `REDIS_PASSWORD`. Otherwise default to
 #'     `NA_character_` (no password). `rppassword(x)` gives the password
 #'      used by `x`.
 #'
@@ -46,7 +50,9 @@ rphost <-
     function(x)
 {
     if (missing(x)) {
-        Sys.getenv("REDISPARAM_HOST", "127.0.0.1")
+        value <- Sys.getenv("REDIS_HOST", "127.0.0.1")
+        value <- Sys.getenv("REDISPARAM_HOST", value)
+        value
     } else {
         x$hostname
     }
@@ -59,7 +65,8 @@ rpport <-
     function(x)
 {
     if (missing(x)) {
-        value <- Sys.getenv("REDISPARAM_PORT", "6379")
+        value <- Sys.getenv("REDIS_PORT", "6379")
+        value <- Sys.getenv("REDISPARAM_PORT", value)
         port <- as.integer(value)
         if (is.na(port)) {
             .error(
@@ -80,7 +87,9 @@ rppassword <-
     function(x)
 {
     if (missing(x)) {
-        Sys.getenv("REDISPARAM_PASSWORD", NA_character_)
+        value <- Sys.getenv("REDIS_PASSWORD", NA_character_)
+        value <- Sys.getenv("REDISPARAM_PASSWORD", value)
+        value
     } else {
         value <- x$password
         if (is.na(value)) {
