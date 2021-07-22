@@ -1,13 +1,7 @@
-setOldClass(c("redisNULL", "RedisBackend"))
+## Loaded in .onLoad
+luaScripts <- new.env()
 
-.RedisParam <- setRefClass(
-    "RedisParam",
-    contains = "BiocParallelParam",
-    fields = c(
-        hostname = "character", port = "integer", password = "character",
-        backend = "RedisBackend", is.worker = "logical"
-    )
-)
+setOldClass(c("redisNULL", "RedisBackend"))
 
 .redisNULL <-
     function()
@@ -106,6 +100,10 @@ RedisBackend <-
 }
 
 ## Utils
+isNoScriptError <- function(e){
+    grepl("NOSCRIPT", e$message, fixed = TRUE)
+}
+
 .wait_until_success <-
     function(expr, timeout,
              errorMsg, operationWhileWaiting = NULL)
@@ -139,6 +137,22 @@ RedisBackend <-
     function(x)
 {
     x$api_client$CLIENT_LIST()
+}
+
+
+.eval <- function(x, scriptName, keys = NULL, args = NULL){
+    stopifnot(scriptName%in%names(luaScripts))
+    script <- luaScripts[[scriptName]]
+    tryCatch(
+        x$api_client$EVALSHA(script$sha1, length(keys), keys, args),
+        error =
+            function(e) {
+                if(isNoScriptError(e)){
+                    x$api_client$EVAL(script$value, length(keys), keys, args)
+                }else{
+                    stop(e)
+                }
+            })
 }
 
 .quit <-

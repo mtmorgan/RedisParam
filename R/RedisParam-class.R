@@ -1,3 +1,12 @@
+.RedisParam <- setRefClass(
+    "RedisParam",
+    contains = "BiocParallelParam",
+    fields = c(
+        hostname = "character", port = "integer", password = "character",
+        backend = "RedisBackend", is.worker = "logical"
+    )
+)
+
 .RedisParam_prototype <- c(
     .BiocParallelParam_prototype,
     list(

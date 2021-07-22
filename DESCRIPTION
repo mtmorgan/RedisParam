@@ -15,7 +15,8 @@ Imports:
     methods,
     redux,
     withr,
-    futile.logger
+    futile.logger,
+    digest
 License: Artistic-2.0
 Encoding: UTF-8
 RoxygenNote: 7.1.1
