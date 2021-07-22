@@ -67,6 +67,11 @@ rpport <-
     if (missing(x)) {
         value <- Sys.getenv("REDIS_PORT", "6379")
         value <- Sys.getenv("REDISPARAM_PORT", value)
+        ## extract the trailing number
+        ## Support the format like "tcp://10.19.242.166:6379"
+        if(nzchar(value) && grepl("[^0-9]", value)){
+            value <- gsub("^.*[^0-9]","", value)
+        }
         port <- as.integer(value)
         if (is.na(port)) {
             .error(
