@@ -34,7 +34,7 @@ RedisBackend <-
     function(
         RedisParam = NULL, jobname = "",
         host = rphost(), port = rpport(), password = rppassword(),
-        timeout = 2592000L, type = c("manager", "worker")
+        timeout = 2592000L, type = c("manager", "worker"), id = NULL
     )
 {
     if (!is.null(RedisParam)) {
@@ -45,11 +45,10 @@ RedisBackend <-
         timeout <- bptimeout(RedisParam)
     }
     type <- match.arg(type)
-    id <- Sys.getenv("REDISPARAM_ID", ipcid())
+    if(is.null(id)){
+        id <- Sys.getenv("REDISPARAM_ID", ipcid())
+    }
     clientName <- .clientName(jobname, type, id)
-    jobQueue <- paste0("biocparallel_redis_job:", jobname)
-    resultQueue <- paste0("biocparallel_redis_result:", jobname)
-    workerQueue <-paste0("biocparallel_redis_workers:", jobname)
 
     api_client <- hiredis(
         host = host,
@@ -61,9 +60,6 @@ RedisBackend <-
             api_client = api_client,
             clientName = clientName,
             jobname = jobname,
-            jobQueue = jobQueue,
-            resultQueue = resultQueue,
-            workerQueue = workerQueue,
             timeout = as.integer(timeout),
             type = type,
             id = id
@@ -80,23 +76,43 @@ RedisBackend <-
     x
 }
 
+## index for the values in the list taskId in Redis
+taskEltIdx <- list(
+    managerResultQueue = 0L,
+    taskValue = 1L,
+    workerId = 2L
+)
+
 ## Naming rule
-.jobCacheQueue <-
-    function(id)
-{
-    paste0("job_cache_queue:", id)
+## Randomly generated task ID
+.taskId <- function(x){
+    paste0("RedisParam_task_", ipcid())
 }
 
-.clientNamePrefix <-
-    function(jobname, type)
-{
-    paste0(jobname, "_redis_", type, "_")
+.managerTaskSetName <- function(managerId){
+    paste0("RedisParam_manager_task_queue_", managerId)
+}
+
+.managerResultQueueName <- function(managerId){
+    paste0("RedisParam_manager_result_queue_", managerId)
+}
+
+.publicTaskQueueName <- function(jobname){
+    paste0("RedisParam_public_task_queue_", jobname)
+}
+
+.workerTaskQueueName <- function(workerId){
+    paste0("RedisParam_worker_task_queue_", workerId)
+}
+
+.workerTaskCacheName <- function(workerId){
+    paste0("RedisParam_worker_task_cache_", workerId)
 }
 
 .clientName <-
     function(jobname, type, id)
 {
-    paste0(.clientNamePrefix(jobname, type), id)
+    paste0(jobname, "_redis_", type, "_" , id)
 }
 
 ## Utils
@@ -126,6 +142,14 @@ isNoScriptError <- function(e){
     .value
 }
 
+.serialize <- function(object){
+    serialize(object, NULL, xdr = FALSE)
+}
+
+.unserialize <- function(object){
+    unserialize(object)
+}
+
 ## Redis APIs
 .setClientName <-
     function(x, name)
@@ -138,7 +162,6 @@ isNoScriptError <- function(e){
 {
     x$api_client$CLIENT_LIST()
 }
-
 
 .eval <- function(x, scriptName, keys = NULL, args = NULL){
     stopifnot(scriptName%in%names(luaScripts))
@@ -161,18 +184,8 @@ isNoScriptError <- function(e){
     x$api_client$QUIT()
 }
 
-.push <-
-    function(x, queue, value)
-{
-    value <- serialize(value, NULL, xdr = FALSE)
-     x$api_client$LPUSH(
-        key = queue,
-        value = value
-    )
-}
-
 .move <-
-    function(x, source, dest, timeout = 1L)
+    function(x, source, dest, timeout = 1)
 {
     value <- x$api_client$BRPOPLPUSH(
         source = source,
@@ -182,78 +195,28 @@ isNoScriptError <- function(e){
     if(is.null(value))
         NULL
     else
-        unserialize(value)
+        value
 }
 
-.delete <-
-    function(x, key)
-{
-    x$api_client$DEL(key)
-}
-
-.queueLen <-
-    function(x, key)
-{
-    x$api_client$LLEN(key)
-}
-
-.setAdd <-
-    function(x, key, values)
-{
-    x$api_client$SADD(key, values)
-}
-
-.setValues <-
-    function(x, key)
-{
-    unlist(x$api_client$SSCAN(key, 0, COUNT = .Machine$integer.max)[[2]])
-}
-
-.setRemove <-
-    function(x, key, values)
-{
-    x$api_client$SREM(key, values)
+.pipeGetElt <- function(key, idx){
+    redis$LRANGE(key, idx, idx)
 }
 
 ## The high level function built upon the wrappers
 .initializeWorker <-
     function(x)
 {
-    if (x$clientName %in% .allWorkers(x)) {
-        stop("Name conflict has been found for the worker <", x$id,">")
-    }
-    .setAdd(x, x$workerQueue, x$id)
-    cacheQueue <- .jobCacheQueue(x$id)
-    if (.queueLen(x, cacheQueue) != 0) {
-        warning("An unfinished job has been found for the worker <", x$id,">")
-        .delete(x, cacheQueue)
-    }
 }
 
 .initializeManager <-
     function(x)
 {
-    deadWorkers <- .listDeadWorkers(x)
-    for (id in deadWorkers) {
-        if (.isWorkerBusy(x, id)) {
-            warning("An unfinished job has been found for the worker <", id,">")
-        }
-        .removeWorkerFromJob(x, id)
-    }
-    if (.queueLen(x, x$jobQueue) != 0) {
-        warning("The job queue is not empty, cleaning up")
-        .delete(x, x$jobQueue)
-    }
-    if (.queueLen(x, x$resultQueue) != 0) {
-        warning("The result queue is not empty, cleaning up")
-        .delete(x, x$resultQueue)
-    }
 }
 
 .allWorkers <-
     function(x)
 {
-    prefix <- .clientNamePrefix(x$jobname, "worker")
+    prefix <- .clientName(x$jobname, "worker", "")
     clients <- .listClients(x)
     idx <- gregexpr(paste0(" name=", prefix, ".+? "), clients)
     clientsNames <- regmatches(clients, idx)[[1]]
@@ -261,97 +224,133 @@ isNoScriptError <- function(e){
     substring(clientsNames, nchar(prefix) + 7, nchar(clientsNames) - 1)
 }
 
-.listDeadWorkers <- function(x){
-    workers <- .setValues(x, x$workerQueue)
-    deadWorkers <- setdiff(workers, bpworkers(x))
-    deadWorkers
-}
-
-.isWorkerBusy <- function(x, workerId){
-    cacheQueue <- .jobCacheQueue(workerId)
-    .queueLen(x, cacheQueue) != 0
-}
-
-.removeWorkerFromJob <- function(x, workerId){
-    cacheQueue <- .jobCacheQueue(workerId)
-    .delete(x, cacheQueue)
-    workerQueue <- x$workerQueue
-    .setRemove(x, workerQueue, workerId)
-}
-
 .resubmitMissingJobs <-
     function(x)
 {
-    deadWorkers <- .listDeadWorkers(x)
-    if (length(deadWorkers)>0) {
-        message(length(deadWorkers), " workers are missing from the job queue.")
+    workerIds <- bpworkers(x)
+    managerTaskSet <- .managerTaskSetName(x$id)
+    publicTaskQueue <- .publicTaskQueueName(x$jobname)
+    missingWorkers <- .eval(x,
+                         "check_worker_status",
+                         c(publicTaskQueue, managerTaskSet),
+                         workerIds)
+    if(length(missingWorkers)){
+        message(length(missingWorkers), " tasks are missing from the job and has been resubmitted.")
+        missingWorkerTaskQueues <- .workerTaskQueueName(missingWorkers)
+        command <- lapply(missingWorkers, function(i) redis$DEL(i))
+        x$api_client$pipeline(.commands = command)
     }
-    ## If there are dead workers, we check if they have any job
-    for (id in deadWorkers) {
-        ## queueLen is 1 means it is running a job
-        if (.isWorkerBusy(x, id)) {
-            message("A missing job is found, resubmitting")
-            cacheQueue <- .jobCacheQueue(id)
-            .move(
-                x,
-                source = cacheQueue,
-                dest = x$jobQueue
-            )
-        }
-        .removeWorkerFromJob(x, id)
-    }
+    missingWorkers
 }
 
 .pushJob <-
     function(x, workerId, value)
 {
-    .push(x, workerId, value)
+    managerResultQueue <- .managerResultQueueName(x$id)
+    taskId <- .taskId(x)
+    workerTaskQueue <- .workerTaskQueueName(workerId)
+    managerTaskSet <- .managerTaskSetName(x$id)
+    x$api_client$pipeline(
+        redis$RPUSH(taskId, managerResultQueue),
+        redis$RPUSH(taskId, .serialize(value)),
+        redis$RPUSH(taskId, ""),
+        redis$LPUSH(workerTaskQueue, taskId),
+        redis$SADD(managerTaskSet, taskId)
+    )
+}
+
+.selectQueue <- function(x){
+    workerTaskQueue <- .workerTaskQueueName(x$id)
+    publicTaskQueue <- .publicTaskQueueName(x$jobname)
+    lengths <- x$api_client$pipeline(
+        worker = redis$LLEN(workerTaskQueue),
+        public = redis$LLEN(publicTaskQueue)
+    )
+    if(lengths$worker == 0 && lengths$public != 0){
+        queueName <- publicTaskQueue
+    }else{
+        queueName <- workerTaskQueue
+    }
+    if(lengths$worker != 0 || lengths$public != 0){
+        waitTime <- 0.01
+    }else{
+        waitTime <- 1
+    }
+    list(queueName = queueName, waitTime = waitTime)
 }
 
 .popJob <-
     function(x)
 {
-    cacheQueue <- .jobCacheQueue(x$id)
-    id <- x$id
-    .wait_until_success({
-        queueName <- ifelse(
-            .queueLen(x, id) == 0,
-            x$jobQueue,
-            id)
+    workerTaskCache <- .workerTaskCacheName(x$id)
+    taskId <- .wait_until_success({
+        queueInfo <- .selectQueue(x)
         .move(
             x,
-            source = queueName,
-            dest = cacheQueue
+            source = queueInfo$queueName,
+            dest = workerTaskCache,
+            timeout = queueInfo$waitTime
         )
     }
     ,
     timeout = Inf,
     errorMsg = "Redis pop operation timeout"
     )
+    ## query the task value and
+    ## set the worker id to the task
+    response <- x$api_client$pipeline(
+        value = .pipeGetElt(taskId, taskEltIdx$taskValue),
+        redis$LSET(taskId, 2, x$id)
+    )
+    unserialize(response$value[[1]])
 }
 
 .pushResult <-
     function(x, value)
 {
-    cacheQueue <- .jobCacheQueue(x$id)
-    .delete(x, cacheQueue)
-    .push(x, x$resultQueue, value)
-
+    workerTaskCache <- .workerTaskCacheName(x$id)
+    taskId <- unlist(x$api_client$LRANGE(workerTaskCache,0,0))
+    ## If someone messes up the job queue
+    if(is.null(taskId)){
+        return()
+    }
+    response <- x$api_client$pipeline(
+        taskExist = redis$EXISTS(taskId),
+        resultQueue = .pipeGetElt(taskId, taskEltIdx$managerResultQueue),
+        workerId = .pipeGetElt(taskId, taskEltIdx$workerId)
+    )
+    value <- .serialize(list(taskId = taskId, value = value))
+    if(response$taskExist &&
+       response$workerId[[1]] == x$id){
+        x$api_client$pipeline(
+            redis$RPUSH(
+                response$resultQueue[[1]],
+                value),
+            redis$DEL(c(workerTaskCache, taskId))
+        )
+    }
 }
 
 .popResult <-
-    function(x, checkTimeout = 1L)
+    function(x, checkInterval = 1L)
 {
-    value <- .wait_until_success(
+    managerTaskSet <- .managerTaskSetName(x$id)
+    managerResultQueue <- .managerResultQueueName(x$id)
+    response <- .wait_until_success(
         x$api_client$BRPOP(
-            key = x$resultQueue,
-            timeout = checkTimeout
+            key = managerResultQueue,
+            timeout = checkInterval
         ),
         timeout = x$timeout,
         errorMsg = "Redis pop operation timeout",
         operationWhileWaiting = .resubmitMissingJobs(x)
     )
-    unserialize(value[[2]])
+    response <- unserialize(response[[2]])
+    x$api_client$pipeline(
+        redis$DEL(response$taskId),
+        redis$SREM(managerTaskSet, response$taskId)
+    )
+    response$value
 }
 
 
@@ -443,13 +442,35 @@ bpstatus <-
 {
     if(is(x, "RedisParam"))
         x <- bpbackend(x)
-    njobs <- .queueLen(x, x$jobQueue)
-    nresults <- .queueLen(x, x$resultQueue)
-    workers <- .setValues(x, x$workerQueue)
-    workerStatus <- lapply(
-        workers,
-        function(id) .queueLen(x, .jobCacheQueue(id))
-    )
-    list(njobs = njobs, nresults = nresults,
-         workers = workers, workerStatus = workerStatus)
+
+    if(x$type == "manager"){
+        workerIds <- bpworkers(x)
+        workerNum <- length(workerIds)
+        managerTaskSet <- .managerTaskSetName(x$id)
+        managerResultQueue <- .managerResultQueueName(x$id)
+        doneTasksNum <- x$api_client$LLEN(managerResultQueue)
+        waitingTaskIds <- x$api_client$SMEMBERS(managerTaskSet)
+        ## Get the worker id
+        commands <- lapply(waitingTaskIds,
+                           function(i) .pipeGetElt(i, taskEltIdx$workerId))
+        taskWorkerIds <- unlist(x$api_client$pipeline(.commands = commands))
+        waitingTaskNum <- sum(taskWorkerIds == "")
+        taskWorkerIds <- taskWorkerIds[taskWorkerIds != ""]
+        runningTaskNum <- sum(taskWorkerIds%in%workerIds)
+        missingTaskNum <- length(taskWorkerIds) - runningTaskNum
+        list(waitingTask = waitingTaskNum,
+             runningTask = runningTaskNum,
+             missingTask = missingTaskNum,
+             doneTask = doneTasksNum,
+             workerNum = workerNum)
+    }else{
+        publicTaskQueue <- .publicTaskQueueName(x$jobname)
+        workerTaskQueue <- .workerTaskQueueName(x$id)
+        workerTaskCache <- .workerTaskCacheName(x$id)
+        x$api_client$pipeline(
+            publicTask = redis$LLEN(publicTaskQueue),
+            privateTask = redis$LLEN(workerTaskQueue),
+            cache = redis$LLEN(workerTaskCache)
+        )
+    }
 }

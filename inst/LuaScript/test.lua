@@ -1,1 +1,1 @@
-return redis.call("LPOP", "a", 30)
+return redis.call("client", "list")

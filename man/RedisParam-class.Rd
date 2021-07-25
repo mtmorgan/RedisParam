@@ -156,7 +156,7 @@ Use an instance of `RedisParam()` for interactive parallel
 
     `rppassword()` reads an (optional) password from the system
     environment variable "REDIS_PASSWORD", defaulting to
-    `NA_character_` (no password). `rppassword(x)` gives the password
+    `NULL` (no password). `rppassword(x)` gives the password
      used by `x`.
 
 `bpstopall()` is used from the manager to stop redis

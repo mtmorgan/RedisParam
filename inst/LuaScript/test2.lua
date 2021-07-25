@@ -1,1 +1,1 @@
-return just_plus_one(2)
+return redis.call("SMEMBERS", "test")

@@ -1,4 +1,4 @@
-#' @importFrom redux redis_available hiredis
+#' @importFrom redux redis_available hiredis redis
 #' @importFrom withr with_envvar
 #' @importFrom digest digest
 #' @import methods BiocParallel futile.logger
