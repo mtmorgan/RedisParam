@@ -1,3 +1,12 @@
+.RedisParam <- setRefClass(
+    "RedisParam",
+    contains = "BiocParallelParam",
+    fields = c(
+        hostname = "character", port = "integer", password = "character",
+        backend = "RedisBackend", is.worker = "logical"
+    )
+)
+
 .RedisParam_prototype <- c(
     .BiocParallelParam_prototype,
     list(
@@ -9,10 +18,6 @@
 #' @rdname RedisParam-class
 #'
 #' @title Enable redis-based parallel evaluation in BiocParallel
-#'
-#' @aliases .send,redis_worker-method .recv,redis_worker-method
-#'     .close,redis_worker-method .send_to,redis_manager-method
-#'     .recv_any,redis_manager-method
 #'
 #' @param workers integer(1) number of redis workers. For `is.worker
 #'     = FALSE`, this parameter is the maximum number of workers

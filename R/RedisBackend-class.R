@@ -1,14 +1,5 @@
 setOldClass(c("redisNULL", "RedisBackend"))
 
-.RedisParam <- setRefClass(
-    "RedisParam",
-    contains = "BiocParallelParam",
-    fields = c(
-        hostname = "character", port = "integer", password = "character",
-        backend = "RedisBackend", is.worker = "logical"
-    )
-)
-
 .redisNULL <-
     function()
 {
@@ -349,8 +340,6 @@ length.RedisBackend <-
 ## Worker
 
 #' @rdname RedisBackend-class
-#'
-#' @export
 setMethod(".recv", "RedisBackend",
     function(worker)
 {
@@ -358,8 +347,6 @@ setMethod(".recv", "RedisBackend",
 })
 
 #' @rdname RedisBackend-class
-#'
-#' @export
 setMethod(".send", "RedisBackend",
     function(worker, value)
 {
@@ -367,8 +354,6 @@ setMethod(".send", "RedisBackend",
 })
 
 #' @rdname RedisBackend-class
-#'
-#' @export
 setMethod(".close", "RedisBackend",
     function(worker)
 {
@@ -380,8 +365,6 @@ setMethod(".close", "RedisBackend",
 ## Manager
 
 #' @rdname RedisBackend-class
-#'
-#' @export
 setMethod(".recv_any", "RedisBackend",
     function(backend)
 {
@@ -390,8 +373,6 @@ setMethod(".recv_any", "RedisBackend",
 })
 
 #' @rdname RedisBackend-class
-#'
-#' @export
 setMethod(".send_to", "RedisBackend",
     function(backend, node, value)
 {

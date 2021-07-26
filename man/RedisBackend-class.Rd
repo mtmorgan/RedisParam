@@ -14,9 +14,9 @@
 RedisBackend(
   RedisParam = NULL,
   jobname = "",
-  host = "127.0.0.1",
-  port = 6379L,
-  password = NULL,
+  host = rphost(),
+  port = rpport(),
+  password = rppassword(),
   timeout = 2592000L,
   type = c("manager", "worker")
 )
