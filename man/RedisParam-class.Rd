@@ -87,14 +87,16 @@ number of workers opened by `bpstart()`.}
 \item{RNGseed}{See `?"BiocParallelParam-class"`.}
 
 \item{redis.hostname}{character(1) host name of redis server,
-from system environment variable `REDIS_HOST` or, by default,
-`"127.0.0.1"`.}
+from system environment variable `REDISPARAM_HOST` or `REDIS_HOST`,
+if both are not defined, the default `"127.0.0.1"` is used.}
 
 \item{redis.port}{integer(1) port of redis server, from system
-environment variable `REDIS_PORT` or, by default, 6379.}
+environment variable `REDISPARAM_PORT` or `REDIS_PORT`,
+if both are not defined, the default `6379` is used.}
 
 \item{redis.password}{character(1) or NULL, host password of redis server
-or, by default, `NA_character_` (no password).}
+from system environment variable `REDISPARAM_PASSWORD` or `REDIS_PASSWORD`,
+if both are not defined, the default `NA_character_` (no password) is used.}
 
 \item{is.worker}{logical(1) \code{bpstart()} creates worker-only
 (\code{TRUE}), manager-only (\code{FALSE}), or manager and
@@ -141,17 +143,20 @@ Use an instance of `RedisParam()` for interactive parallel
     `snowWorkers()` if workers are created dynamically, or a fixed
     maximum (currently 1000) if workers are listening on a queue.
 
-    `rphost()` reads the host name of the redis server from a
-    system environment variable `"REDIS_HOST"`, defaulting to
+    `rphost()` reads the host name of the Redis server from the
+    system environment variable `REDISPARAM_HOST`, if the variable is
+    not defined, fallback to `REDIS_HOST`. Otherwise default to
     `"127.0.0.1"`. `rphost(x)` gives the host name used by `x`.
 
-    `rpport()` reads the port of the redis server from a system
-    environment variable `"REDIS_PORT"`, defaulting to 6379.
-    `rpport(x)` gives the port used by `x`.
+    `rpport()` reads the port of the Redis server from a system
+    environment variable `REDISPARAM_PORT`, if the variable is
+    not defined, fallback to `REDIS_PORT`. Otherwise default to
+    `6379`. `rpport(x)` gives the port used by `x`.
 
     `rppassword()` reads an (optional) password from the system
-    environment variable "REDIS_PASSWORD", defaulting to
-    `NULL` (no password). `rppassword(x)` gives the password
+    environment variable `REDISPARAM_PASSWORD`, if the variable is
+    not defined, fallback to `REDIS_PASSWORD`. Otherwise default to
+    `NA_character_` (no password). `rppassword(x)` gives the password
      used by `x`.
 
 `bpstopall()` is used from the manager to stop redis
