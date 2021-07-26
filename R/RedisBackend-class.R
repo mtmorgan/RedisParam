@@ -135,6 +135,7 @@ RedisBackend <-
     function(x)
 {
     x$api_client$QUIT()
+    invisible(NULL)
 }
 
 .push <-
@@ -359,7 +360,7 @@ setMethod(".close", "RedisBackend",
 {
     if (!identical(worker, .redisNULL()))
         .quit(worker)
-    invisible(TRUE)
+    invisible(NULL)
 })
 
 ## Manager
