@@ -9,7 +9,7 @@ for i = 1, #waitingTask, 1 do
     local taskId = waitingTask[i]
     local existsTask = redis.call("exists", taskId)
     if existsTask == 1 then
-        local workerId = redis.call("lrange", taskId, 2, 2)[1]
+        local workerId = redis.call("lrange", taskId, taskWorkerIdx, taskWorkerIdx)[1]
         local missing = false
         if (workerId ~= "public") and (not existsElement(liveWorkers, workerId)) then
             missing = true

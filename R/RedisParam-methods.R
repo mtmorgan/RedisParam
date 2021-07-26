@@ -243,12 +243,41 @@ bpstopall <-
     gc()                            # close connections
 
     invisible(x)
-}
+    }
 
+#' @rdname RedisParam-class
+#'
+#' @export
 setReplaceMethod("bplog", c("RedisParam", "logical"),
     function(x, value)
 {
+    if(bpisup(x)){
+        bpbackend(x)$log <- value
+    }
     x$log <- value
     x
 })
 
+#' @rdname RedisParam-class
+#'
+#' @export
+setReplaceMethod("bpRNGseed", c("RedisParam", "numeric"),
+    function(x, value)
+{
+    if(bpisup(x)){
+        bpbackend(x)$seed <- TRUE
+    }
+    callNextMethod()
+})
+
+#' @rdname RedisParam-class
+#'
+#' @export
+setReplaceMethod("bpRNGseed", c("RedisParam", "NULL"),
+    function(x, value)
+{
+    if(bpisup(x)){
+        bpbackend(x)$seed <- FALSE
+    }
+    callNextMethod()
+})

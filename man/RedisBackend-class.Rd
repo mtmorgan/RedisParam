@@ -6,6 +6,7 @@
 \alias{.send,RedisBackend-method}
 \alias{.close,RedisBackend-method}
 \alias{.recv_any,RedisBackend-method}
+\alias{.recv_all,RedisBackend-method}
 \alias{.send_to,RedisBackend-method}
 \alias{bpjobname,RedisBackend-method}
 \alias{bpworkers,RedisBackend-method}
@@ -19,7 +20,10 @@ RedisBackend(
   password = rppassword(),
   timeout = 2592000L,
   type = c("manager", "worker"),
-  id = NULL
+  id = NULL,
+  workerOffset = NULL,
+  seed = FALSE,
+  log = FALSE
 )
 
 \S4method{.recv}{RedisBackend}(worker)
@@ -29,6 +33,8 @@ RedisBackend(
 \S4method{.close}{RedisBackend}(worker)
 
 \S4method{.recv_any}{RedisBackend}(backend)
+
+\S4method{.recv_all}{RedisBackend}(backend)
 
 \S4method{.send_to}{RedisBackend}(backend, node, value)
 

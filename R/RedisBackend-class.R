@@ -34,7 +34,8 @@ RedisBackend <-
     function(
         RedisParam = NULL, jobname = "",
         host = rphost(), port = rpport(), password = rppassword(),
-        timeout = 2592000L, type = c("manager", "worker"), id = NULL
+        timeout = 2592000L, type = c("manager", "worker"), id = NULL,
+        workerOffset = NULL, seed = FALSE, log = FALSE
     )
 {
     if (!is.null(RedisParam)) {
@@ -43,10 +44,15 @@ RedisBackend <-
         port <- rpport(RedisParam)
         password <- rppassword(RedisParam)
         timeout <- bptimeout(RedisParam)
+        log <- bplog(RedisParam)
+        seed <- !is.null(bpRNGseed(RedisParam))
     }
     type <- match.arg(type)
     if(is.null(id)){
         id <- Sys.getenv("REDISPARAM_ID", ipcid())
+    }
+    if(is.null(workerOffset)){
+        workerOffset <- sample.int(10000, 1)
     }
     clientName <- .clientName(jobname, type, id)
 
@@ -62,7 +68,10 @@ RedisBackend <-
             jobname = jobname,
             timeout = as.integer(timeout),
             type = type,
-            id = id
+            id = id,
+            workerOffset = workerOffset,
+            seed = seed,
+            log = log
         ),
         class = "RedisBackend"
     )
@@ -280,7 +289,11 @@ isNoScriptError <- function(e){
 {
     managerResultQueue <- .managerResultQueueName(x$id)
     taskId <- .taskId(x)
-    workerTaskQueue <- .workerTaskQueueName(workerId)
+    if(workerId == "public"){
+        workerTaskQueue <- .publicTaskQueueName(x$jobname)
+    }else{
+        workerTaskQueue <- .workerTaskQueueName(workerId)
+    }
     managerTaskSet <- .managerTaskSetName(x$id)
     x$api_client$pipeline(
         redis$RPUSH(taskId, managerResultQueue),
@@ -391,8 +404,6 @@ isNoScriptError <- function(e){
     response$value
 }
 
-
-
 #' @export
 length.RedisBackend <-
     function(x)
@@ -455,12 +466,40 @@ setMethod(".recv_any", "RedisBackend",
 #' @rdname RedisBackend-class
 #'
 #' @export
+setMethod(".recv_all", "RedisBackend",
+    function(backend)
+{
+    managerTaskSet <- .managerTaskSetName(backend$id)
+    replicate(backend$api_client$LLEN(managerTaskSet),
+              .recv_any(backend), simplify=FALSE)
+})
+
+
+isbploop <- function(calls){
+    identical(
+        c("bploop.lapply", "cls", "X", "lapply", "ARGFUN", "BPPARAM"),
+        as.character(calls[[length(calls) - 2]]))
+}
+#' @rdname RedisBackend-class
+#'
+#' @export
 setMethod(".send_to", "RedisBackend",
     function(backend, node, value)
 {
     tryCatch(
         {
-            node <- bpworkers(backend)[node]
+            ## We only dispatch the task to the public queue when
+            ## 1. .send_to is called by bploop
+            ## 2. The seed is disabled
+            if(isbploop(sys.calls()) && !backend$seed){
+                .debug(backend, "A task is sent to the public queue")
+                node <- "public"
+            }else{
+                .debug(backend, "A task is sent to the worker queue")
+                allWorkers <- bpworkers(backend)
+                idx <- (backend$workerOffset + node - 1)%%length(allWorkers) + 1
+                node <- allWorkers[idx]
+            }
             .pushJob(backend, node, value)
         },
         interrupt = function(condition){
@@ -486,6 +525,12 @@ setMethod(bpworkers, "RedisBackend",
     } else {
         .allWorkers(x)
     }
+})
+
+setMethod(bplog, "RedisBackend",
+    function(x)
+{
+    x$log
 })
 
 ## Show the backend status
