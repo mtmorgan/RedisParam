@@ -43,28 +43,28 @@ set.log.threshold <-
 .trace <-
     function(x, ...)
 {
-    if (bplog(x))
+    if (!missing(x) && bplog(x))
         flog.trace(..., name = get.logger.name(x))
 }
 
 .debug <-
     function(x, ...)
 {
-    if (bplog(x))
+    if (!missing(x) && bplog(x))
         flog.debug(..., name = get.logger.name(x))
 }
 
 .info <-
     function(x, ...)
 {
-    if (bplog(x))
+    if (!missing(x) && bplog(x))
         flog.info(..., name = get.logger.name(x))
 }
 
 .warn <-
     function(x, fmt, ...)
 {
-    if (bplog(x)) {
+    if (!missing(x) && bplog(x)) {
         value <- flog.warn(fmt, ..., name = get.logger.name(x))
     } else {
         value <- sprintf(fmt, ...)
@@ -75,7 +75,7 @@ set.log.threshold <-
 .error <-
     function(x, fmt, ...)
 {
-    if (bplog(x)) {
+    if (!missing(x) && bplog(x)) {
         value <- flog.error(fmt, ..., name = get.logger.name(x))
     } else {
         value <- sprintf(fmt, ...)
