@@ -18,7 +18,8 @@ RedisBackend(
   port = rpport(),
   password = rppassword(),
   timeout = 2592000L,
-  type = c("manager", "worker")
+  type = c("manager", "worker"),
+  id = NULL
 )
 
 \S4method{.recv}{RedisBackend}(worker)

@@ -5,9 +5,9 @@
 NULL
 
 
-loadLuaFunctions <- function(){
+loadLuaHeaders <- function(){
     scriptPath <- system.file(
-        "LuaScript", "functions",
+        "LuaScript", "headers",
         package="RedisParam"
     )
     files <- list.files(scriptPath, full.names = TRUE)
@@ -18,7 +18,7 @@ loadLuaFunctions <- function(){
 }
 
 .onLoad <- function(libname, pkgname){
-    luaFunctions <- loadLuaFunctions()
+    luaHeaders <- loadLuaHeaders()
     scriptPath <- system.file(
         "LuaScript",
         package="RedisParam"
@@ -30,7 +30,7 @@ loadLuaFunctions <- function(){
     filePathes <- file.path(scriptPath, files)
     scriptNames <- gsub(".lua", "", files, fixed = TRUE)
     scripts <- lapply(filePathes, function(x){
-        script <- paste0(luaFunctions, "\r\n", readChar(x, file.info(x)$size))
+        script <- paste0(luaHeaders, "\r\n", readChar(x, file.info(x)$size))
         sha1 <- digest::digest(script, algo = "sha1", serialize = FALSE)
         list(value = script, sha1 = sha1)
     })

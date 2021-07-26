@@ -54,7 +54,7 @@ test_that(".recv", {
     )
 })
 
-test_that(".resubmitMissingJobs", {
+test_that(".resubmitMissingTasks", {
     ## kill worker1's connection to Redis
     worker1 <<- NULL
     gc()
@@ -66,7 +66,7 @@ test_that(".resubmitMissingJobs", {
              doneTask = 0L,
              workerNum = 1L)
     )
-    .resubmitMissingJobs(manager)
+    .resubmitMissingTasks(manager)
     expect_equal(
         bpstatus(manager),
         list(waitingTask = 1L,

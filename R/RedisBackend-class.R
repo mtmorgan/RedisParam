@@ -66,7 +66,10 @@ RedisBackend <-
         ),
         class = "RedisBackend"
     )
-
+    clients <- x$api_client$CLIENT_LIST()
+    if(grepl(clientName, clients, fixed = TRUE)){
+        stop("The client <", clientName, "> has been registered in Redis")
+    }
     if(type == "worker"){
         .initializeWorker(x)
     }else{
@@ -178,12 +181,6 @@ isNoScriptError <- function(e){
             })
 }
 
-.quit <-
-    function(x)
-{
-    x$api_client$QUIT()
-}
-
 .move <-
     function(x, source, dest, timeout = 1)
 {
@@ -202,15 +199,50 @@ isNoScriptError <- function(e){
     redis$LRANGE(key, idx, idx)
 }
 
+
 ## The high level function built upon the wrappers
 .initializeWorker <-
     function(x)
 {
+    workerTaskCache <- .workerTaskCacheName(x$id)
+    x$api_client$DEL(workerTaskCache)
 }
 
 .initializeManager <-
     function(x)
 {
+    managerTaskSet <- .managerTaskSetName(x$id)
+    managerResultQueue <- .managerResultQueueName(x$id)
+    response <- x$api_client$pipeline(
+        waitingTaskNum = redis$SCARD(managerTaskSet),
+        resultNum = redis$LLEN(managerResultQueue)
+    )
+    if (response$waitingTaskNum != 0||
+        response$resultNum != 0) {
+        message("The manager <", x$id, "> has unfinished jobs. Cleaning up")
+        .cleanupManager(x)
+    }
+}
+
+.cleanupManager <- function(x){
+    managerTaskSet <- .managerTaskSetName(x$id)
+    managerResultQueue <- .managerResultQueueName(x$id)
+    waitingTaskIds <- unlist(x$api_client$SMEMBERS(managerTaskSet))
+    x$api_client$pipeline(
+        redis$DEL(waitingTaskIds),
+        redis$DEL(managerTaskSet),
+        redis$DEL(managerResultQueue)
+    )
+}
+
+.cleanupWorker <- function(x){
+    workerTaskCache <- .workerTaskCacheName(x$id)
+    workerTaskQueue <- .workerTaskQueueName(x$id)
+    redis$pipeline(
+        redis$QUIT(),
+        redis$DEL(workerTaskCache),
+        redis$DEL(workerTaskQueue)
+    )
 }
 
 .allWorkers <-
@@ -224,21 +256,21 @@ isNoScriptError <- function(e){
     substring(clientsNames, nchar(prefix) + 7, nchar(clientsNames) - 1)
 }
 
-.resubmitMissingJobs <-
+.resubmitMissingTasks <-
     function(x)
 {
     workerIds <- bpworkers(x)
     managerTaskSet <- .managerTaskSetName(x$id)
     publicTaskQueue <- .publicTaskQueueName(x$jobname)
     missingWorkers <- .eval(x,
-                         "check_worker_status",
+                         "resubmit_missing_tasks",
                          c(publicTaskQueue, managerTaskSet),
                          workerIds)
+    missingWorkers <- unlist(missingWorkers)
     if(length(missingWorkers)){
         message(length(missingWorkers), " tasks are missing from the job and has been resubmitted.")
         missingWorkerTaskQueues <- .workerTaskQueueName(missingWorkers)
-        command <- lapply(missingWorkers, function(i) redis$DEL(i))
-        x$api_client$pipeline(.commands = command)
+        x$api_client$pipeline(redis$DEL(missingWorkerTaskQueues))
     }
     missingWorkers
 }
@@ -253,7 +285,7 @@ isNoScriptError <- function(e){
     x$api_client$pipeline(
         redis$RPUSH(taskId, managerResultQueue),
         redis$RPUSH(taskId, .serialize(value)),
-        redis$RPUSH(taskId, ""),
+        redis$RPUSH(taskId, workerId),
         redis$LPUSH(workerTaskQueue, taskId),
         redis$SADD(managerTaskSet, taskId)
     )
@@ -282,26 +314,32 @@ isNoScriptError <- function(e){
 .popJob <-
     function(x)
 {
-    workerTaskCache <- .workerTaskCacheName(x$id)
-    taskId <- .wait_until_success({
-        queueInfo <- .selectQueue(x)
-        .move(
-            x,
-            source = queueInfo$queueName,
-            dest = workerTaskCache,
-            timeout = queueInfo$waitTime
+    ## The function is not an atomic operation
+    ## We should expect that the task can be
+    ## invalid when trying to get the value of the task
+    existsTask <- FALSE
+    while(!existsTask){
+        workerTaskCache <- .workerTaskCacheName(x$id)
+        taskId <- .wait_until_success({
+            queueInfo <- .selectQueue(x)
+            .move(
+                x,
+                source = queueInfo$queueName,
+                dest = workerTaskCache,
+                timeout = queueInfo$waitTime
+            )
+        }
+        ,
+        timeout = Inf,
+        errorMsg = "Redis pop operation timeout"
         )
+        response <- x$api_client$pipeline(
+            existsTask = redis$EXISTS(taskId),
+            value = .pipeGetElt(taskId, taskEltIdx$taskValue),
+            redis$LSET(taskId, 2, x$id)
+        )
+        existsTask <- as.logical(response$existsTask)
     }
-    ,
-    timeout = Inf,
-    errorMsg = "Redis pop operation timeout"
-    )
-    ## query the task value and
-    ## set the worker id to the task
-    response <- x$api_client$pipeline(
-        value = .pipeGetElt(taskId, taskEltIdx$taskValue),
-        redis$LSET(taskId, 2, x$id)
-    )
     unserialize(response$value[[1]])
 }
 
@@ -343,7 +381,7 @@ isNoScriptError <- function(e){
         ),
         timeout = x$timeout,
         errorMsg = "Redis pop operation timeout",
-        operationWhileWaiting = .resubmitMissingJobs(x)
+        operationWhileWaiting = .resubmitMissingTasks(x)
     )
     response <- unserialize(response[[2]])
     x$api_client$pipeline(
@@ -389,7 +427,7 @@ setMethod(".close", "RedisBackend",
     function(worker)
 {
     if (!identical(worker, .redisNULL())) {
-        .quit(worker)
+        .cleanupWorker(worker)
     }
     invisible(NULL)
 })
@@ -402,8 +440,16 @@ setMethod(".close", "RedisBackend",
 setMethod(".recv_any", "RedisBackend",
     function(backend)
 {
-    value <- .popResult(backend)
-    list(node = value$tag, value = value)
+    tryCatch(
+        {
+            value <- .popResult(backend)
+            list(node = value$tag, value = value)
+        },
+        interrupt = function(condition){
+            .cleanupManager(backend)
+        }
+    )
+
 })
 
 #' @rdname RedisBackend-class
@@ -412,8 +458,15 @@ setMethod(".recv_any", "RedisBackend",
 setMethod(".send_to", "RedisBackend",
     function(backend, node, value)
 {
-    node <- bpworkers(backend)[node]
-    .pushJob(backend, node, value)
+    tryCatch(
+        {
+            node <- bpworkers(backend)[node]
+            .pushJob(backend, node, value)
+        },
+        interrupt = function(condition){
+            .cleanupManager(backend)
+        }
+    )
     invisible(TRUE)
 })
 
