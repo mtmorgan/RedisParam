@@ -63,6 +63,7 @@ rpport <-
         port <- as.integer(value)
         if (is.na(port)) {
             .error(
+                x,
                 "The 'REDIS_PORT' environment variable cannot be coerced to an integer. The original value was '%s'.",
                 value
             )
