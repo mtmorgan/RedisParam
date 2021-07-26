@@ -98,8 +98,7 @@ RedisBackend <-
 
 ## Utils
 .wait_until_success <-
-    function(expr, timeout,
-             errorMsg, operationWhileWaiting = NULL)
+    function(expr, timeout, errorMsg, operationWhileWaiting = NULL)
 {
     frame <- parent.frame()
     expr <- substitute(expr)
@@ -238,8 +237,7 @@ RedisBackend <-
 
 .listDeadWorkers <- function(x){
     workers <- .setValues(x, x$workerQueue)
-    deadWorkers <- setdiff(workers, bpworkers(x))
-    deadWorkers
+    setdiff(workers, bpworkers(x))
 }
 
 .isWorkerBusy <- function(x, workerId){
@@ -402,7 +400,7 @@ setMethod(bpworkers, "RedisBackend",
 
 ## Show the backend status
 ## For debugging purpose only
-bpstatus <-
+.rpstatus <-
     function(x)
 {
     if (is(x, "RedisParam"))
