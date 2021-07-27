@@ -176,6 +176,17 @@ isNoScriptError <-
     unserialize(object)
 }
 
+## Check .send_to is called inside bploop
+.isbploop <- function(calls){
+    if (length(calls)<=2) {
+        FALSE
+    } else {
+        identical(
+        c("bploop.lapply", "cls", "X", "lapply", "ARGFUN", "BPPARAM"),
+        as.character(calls[[length(calls) - 2]]))
+    }
+}
+
 ## Redis functions
 .quit <-
     function(x)
@@ -192,11 +203,10 @@ isNoScriptError <-
         x$api_client$EVALSHA(script$sha1, length(keys), keys, args),
         error =
             function(e) {
-                if(isNoScriptError(e)){
+                if (isNoScriptError(e))
                     x$api_client$EVAL(script$value, length(keys), keys, args)
-                }else{
+                else
                     stop(e)
-                }
             })
 }
 
@@ -288,12 +298,11 @@ isNoScriptError <-
                          c(publicTaskQueue, managerTaskSet),
                          workerIds)
     missingWorkers <- unlist(missingWorkers)
-    if(length(missingWorkers)){
+    if (length(missingWorkers))
         message(
             length(missingWorkers),
             " tasks are missing from the job and has been resubmitted."
         )
-    }
     missingWorkers
 }
 
@@ -324,7 +333,7 @@ isNoScriptError <-
         worker = redis$LLEN(workerTaskQueue),
         public = redis$LLEN(publicTaskQueue)
     )
-    if(lengths$worker == 0 && lengths$public == 0)
+    if (lengths$worker == 0 && lengths$public == 0)
         stop("The job queue has been corrputed!")
 
     queueName <- ifelse(
@@ -380,29 +389,25 @@ isNoScriptError <-
     workerTaskCache <- .workerTaskCacheName(x$id)
     taskId <- unlist(x$api_client$LRANGE(workerTaskCache,0,0))
     ## If someone messes up the job queue
-    if(is.null(taskId)){
+    if (is.null(taskId))
         return(0)
-    }
     response <- x$api_client$pipeline(
         taskExist = redis$EXISTS(taskId),
         resultQueue = .pipeGetElt(taskId, taskEltIdx$managerResultQueue),
         workerId = .pipeGetElt(taskId, taskEltIdx$workerId)
     )
     value <- .serialize(list(taskId = taskId, value = value))
-    ## submit the result only when the task exists and
+    ## continue only when the task exists and
     ## the worker ID matches the current worker
-    if(response$taskExist &&
-       response$workerId[[1]] == x$id){
-        x$api_client$pipeline(
-            redis$RPUSH(
-                response$resultQueue[[1]],
-                value),
-            redis$DEL(c(workerTaskCache, taskId))
-        )[[1]]
-    }else{
-        0
-    }
+    if (!response$taskExist || response$workerId[[1]] != x$id)
+        return(0)
 
+    x$api_client$pipeline(
+        redis$RPUSH(
+            response$resultQueue[[1]],
+            value),
+        redis$DEL(c(workerTaskCache, taskId))
+    )[[1]]
 }
 
 .popResult <-
@@ -487,15 +492,6 @@ setMethod(".recv_all", "RedisBackend",
 })
 
 
-isbploop <- function(calls){
-    if(length(calls)<=2){
-        FALSE
-    }else{
-        identical(
-        c("bploop.lapply", "cls", "X", "lapply", "ARGFUN", "BPPARAM"),
-        as.character(calls[[length(calls) - 2]]))
-    }
-}
 
 #' @rdname RedisBackend-class
 setMethod(".send_to", "RedisBackend",
@@ -506,10 +502,10 @@ setMethod(".send_to", "RedisBackend",
             ## We only dispatch the task to the public queue when
             ## 1. .send_to is called by bploop
             ## 2. The RNGseed is disabled
-            if(!backend$RNGseed && isbploop(sys.calls())){
+            if (!backend$RNGseed && .isbploop(sys.calls())) {
                 .debug(backend, "A task is sent to the public queue")
                 node <- "public"
-            }else{
+            } else {
                 .debug(backend, "A task is sent to the worker queue")
                 allWorkers <- bpworkers(backend)
                 idx <- (backend$workerOffset + node - 1)%%length(allWorkers) + 1
@@ -571,7 +567,7 @@ setMethod(bplog, "RedisBackend",
     if (identical(x, .redisNULL()))
         return(NULL)
 
-    if(x$type == "manager"){
+    if (x$type == "manager") {
         workerIds <- bpworkers(x)
         workerNum <- length(workerIds)
         managerTaskSet <- .managerTaskSetName(x$id)
@@ -610,7 +606,7 @@ setMethod(bplog, "RedisBackend",
             finishedTask = finishedTask,
             missingTask = missingTaskNum,
             workerNum = workerNum)
-    }else{
+    } else {
         status <- .workerStatus(x, x$id)
         list(privateTask = length(status$privateTask),
              workerTaskCache = length(status$workerTaskCache))
@@ -618,7 +614,7 @@ setMethod(bplog, "RedisBackend",
 }
 
 .resetRedis <- function(x){
-    if(is(x, "RedisParam"))
+    if (is(x, "RedisParam"))
         x <- bpbackend(x)
     if (identical(x, .redisNULL()))
         return(NULL)
