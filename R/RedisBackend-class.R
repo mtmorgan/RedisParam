@@ -261,6 +261,7 @@ isNoScriptError <-
         redis$DEL(managerTaskSet),
         redis$DEL(managerResultQueue)
     )
+    NULL
 }
 
 .cleanupWorker <-
@@ -273,6 +274,7 @@ isNoScriptError <-
         redis$DEL(workerTaskCache),
         redis$DEL(workerTaskQueue)
     )
+    NULL
 }
 
 .allWorkers <-

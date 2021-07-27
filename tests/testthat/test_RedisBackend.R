@@ -58,7 +58,7 @@ test_that("job dispatching function", {
 
     ## .send
     resultMessage <- "result message"
-    expect_error(.send(worker, resultMessage), NA)
+    .send(worker, resultMessage)
     expect_equal(
         .rpstatus(worker),
         list(privateTask = 0L, workerTaskCache = 0L)
