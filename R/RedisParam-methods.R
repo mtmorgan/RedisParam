@@ -229,7 +229,7 @@ bpstopall <-
     .trace(x, "bpstopall")
 
     if (isTRUE(rpisworker(x))) {
-        .error("use 'bpstopall()' from manager, not worker")
+        .error(x, "use 'bpstopall()' from manager, not worker")
     }
 
     if (!bpisup(x)) {
