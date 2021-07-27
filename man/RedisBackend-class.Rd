@@ -22,7 +22,7 @@ RedisBackend(
   type = c("manager", "worker"),
   id = NULL,
   workerOffset = NULL,
-  seed = FALSE,
+  RNGseed = FALSE,
   log = FALSE
 )
 

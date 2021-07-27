@@ -56,7 +56,6 @@ test_that("RedisParam constructor works", {
     expect_identical(FALSE, bpisup(p))
 })
 
-
 test_that("RedisParam local workers", {
     p <- RedisParam(2L)
     skip_if_not(rpalive(p))
@@ -65,38 +64,56 @@ test_that("RedisParam local workers", {
     expect_s4_class(p, "RedisParam")
     expect_true(validObject(p))
     expect_true(bpisup(p))
+    expect_equal(bpnworkers(p), 2L)
 
-    result <- bplapply(1:5, function(i) Sys.getpid(), BPPARAM = p)
-    expect_identical(length(result), 5L)
-    expect_identical(length(unique(unlist(result))), 2L)
+    result <- bplapply(1:2, function(i) Sys.getpid(), BPPARAM = p)
+    expect_identical(length(result), 2L)
+    ## By default the job is sent to the public queue
+    ## it is possible that all tasks are performed by a single worker
+    expect_true(!Sys.getpid()%in%unique(unlist(result)))
 
     p <- bpstop(p)
     expect_s4_class(p, "RedisParam")
     expect_true(validObject(p))
     expect_false(bpisup(p))
 })
-
-
 
 test_that("RedisParam local workers with a long running job", {
     p <- RedisParam(2L)
     skip_if_not(rpalive(p))
 
     p <- bpstart(p)
-    expect_s4_class(p, "RedisParam")
-    expect_true(validObject(p))
-    expect_true(bpisup(p))
+    expect_equal(bpnworkers(p), 2L)
 
-    result <- bplapply(1:5,
+    result <- bplapply(1:4,
                        function(i) {
-                           sleep(2)
+                           Sys.sleep(2)
                            Sys.getpid()
                        }, BPPARAM = p)
-    expect_identical(length(result), 5L)
+    expect_identical(length(result), 4L)
     expect_identical(length(unique(unlist(result))), 2L)
 
     p <- bpstop(p)
-    expect_s4_class(p, "RedisParam")
-    expect_true(validObject(p))
-    expect_false(bpisup(p))
 })
+
+test_that("RedisParam RNGseed test", {
+    p <- RedisParam(2L, RNGseed = 1)
+    skip_if_not(rpalive(p))
+
+    ## Check if the task is sent to the private queue
+    p <- bpstart(p)
+    result <- bplapply(1:2, function(i) Sys.getpid(), BPPARAM = p)
+    expect_identical(length(result), 2L)
+    expect_identical(length(unique(unlist(result))), 2L)
+    p <- bpstop(p)
+
+    ## The result should be reproducible
+    p <- bpstart(p)
+    result1 <- bplapply(1:2, function(i) runif(1), BPPARAM = p)
+    p <- bpstop(p)
+    p <- bpstart(p)
+    result2 <- bplapply(1:2, function(i) runif(1), BPPARAM = p)
+    p <- bpstop(p)
+    expect_identical(result1, result2)
+})
+

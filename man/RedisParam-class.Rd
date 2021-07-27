@@ -14,8 +14,9 @@
 \alias{bpstart,RedisParam-method}
 \alias{bpstop,RedisParam-method}
 \alias{bpstopall}
-\alias{bplog<-,RedisParam,ANY-method}
-\alias{bpRNGseed<-,RedisParam,ANY-method}
+\alias{bplog<-,RedisParam,logical-method}
+\alias{bpRNGseed<-,RedisParam,numeric-method}
+\alias{bpRNGseed<-,RedisParam,NULL-method}
 \title{Enable redis-based parallel evaluation in BiocParallel}
 \usage{
 RedisParam(
@@ -59,9 +60,11 @@ rpisworker(x)
 
 bpstopall(x)
 
-\S4method{bplog}{RedisParam,ANY}(x) <- value
+\S4method{bplog}{RedisParam,logical}(x) <- value
 
-\S4method{bpRNGseed}{RedisParam,ANY}(x) <- value
+\S4method{bpRNGseed}{RedisParam,numeric}(x) <- value
+
+\S4method{bpRNGseed}{RedisParam,`NULL`}(x) <- value
 }
 \arguments{
 \item{workers}{integer(1) number of redis workers. For `is.worker

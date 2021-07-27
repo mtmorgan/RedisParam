@@ -35,7 +35,7 @@ RedisBackend <-
         RedisParam = NULL, jobname = "",
         host = rphost(), port = rpport(), password = rppassword(),
         timeout = 2592000L, type = c("manager", "worker"), id = NULL,
-        workerOffset = NULL, seed = FALSE, log = FALSE
+        workerOffset = NULL, RNGseed = FALSE, log = FALSE
     )
 {
     if (!is.null(RedisParam)) {
@@ -45,46 +45,46 @@ RedisBackend <-
         password <- rppassword(RedisParam)
         timeout <- bptimeout(RedisParam)
         log <- bplog(RedisParam)
-        seed <- !is.null(bpRNGseed(RedisParam))
+        RNGseed <- !is.null(bpRNGseed(RedisParam))
     }
     type <- match.arg(type)
-    if(is.null(id)){
-        id <- Sys.getenv("REDISPARAM_ID", ipcid())
+    if (is.null(id)) {
+        id <- Sys.getenv("REDISPARAM_ID", BiocParallel::ipcid())
     }
-    if(is.null(workerOffset)){
+    if (is.null(workerOffset)) {
         workerOffset <- sample.int(10000, 1)
     }
-    clientName <- .clientName(jobname, type, id)
 
     api_client <- hiredis(
         host = host,
         port = as.integer(port),
         password = password)
 
+    clientName <- .clientName(jobname, type, id)
+    clients <- api_client$CLIENT_LIST()
+    if (grepl(clientName, clients, fixed = TRUE)) {
+        stop("Name conflict has been found for the manager/worker '", id, "'")
+    }
+    api_client$CLIENT_SETNAME(clientName)
+
     x <- structure(
         list(
             api_client = api_client,
-            clientName = clientName,
             jobname = jobname,
             timeout = as.integer(timeout),
             type = type,
             id = id,
             workerOffset = workerOffset,
-            seed = seed,
+            RNGseed = RNGseed,
             log = log
         ),
         class = "RedisBackend"
     )
-    clients <- x$api_client$CLIENT_LIST()
-    if(grepl(clientName, clients, fixed = TRUE)){
-        stop("The client <", clientName, "> has been registered in Redis")
-    }
-    if(type == "worker"){
+    if (type == "worker") {
         .initializeWorker(x)
     }else{
         .initializeManager(x)
     }
-    .setClientName(x, clientName)
     x
 }
 
@@ -97,27 +97,39 @@ taskEltIdx <- list(
 
 ## Naming rule
 ## The task ID is random
-.taskId <- function(x){
-    paste0("RedisParam_task_", ipcid())
+.taskId <-
+    function(x)
+{
+    paste0("RedisParam_task_", BiocParallel::ipcid())
 }
 
-.managerTaskSetName <- function(managerId){
+.managerTaskSetName <-
+    function(managerId)
+{
     paste0("RedisParam_manager_task_queue_", managerId)
 }
 
-.managerResultQueueName <- function(managerId){
+.managerResultQueueName <-
+    function(managerId)
+{
     paste0("RedisParam_manager_result_queue_", managerId)
 }
 
-.publicTaskQueueName <- function(jobname){
+.publicTaskQueueName <-
+    function(jobname)
+{
     paste0("RedisParam_public_task_queue_", jobname)
 }
 
-.workerTaskQueueName <- function(workerId){
+.workerTaskQueueName <-
+function(workerId)
+    {
     paste0("RedisParam_worker_task_queue_", workerId)
 }
 
-.workerTaskCacheName <- function(workerId){
+.workerTaskCacheName <-
+    function(workerId)
+{
     paste0("RedisParam_worker_task_cache_", workerId)
 }
 
@@ -128,54 +140,52 @@ taskEltIdx <- list(
 }
 
 ## Utils
-isNoScriptError <- function(e){
+isNoScriptError <-
+    function(e)
+{
     grepl("NOSCRIPT", e$message, fixed = TRUE)
 }
 
 .wait_until_success <-
-    function(expr, timeout,
-             errorMsg, operationWhileWaiting = NULL)
+    function(expr, timeout, errorMsg, operationWhileWaiting = NULL)
 {
     frame <- parent.frame()
     expr <- substitute(expr)
     operationWhileWaiting <- substitute(operationWhileWaiting)
     start_time <- Sys.time()
-    repeat{
+    repeat {
         .value <- eval(expr, envir = frame)
-        if (!is.null(.value)) {
+        if (!is.null(.value))
             break
-        }
         eval(operationWhileWaiting, envir = frame)
-        wait_time <- difftime(Sys.time(), start_time, units = 'secs')
-        if (wait_time > timeout) {
+        waitTime <- difftime(Sys.time(), start_time, units = 'secs')
+        if (waitTime > timeout)
             stop(errorMsg)
-        }
     }
     .value
 }
 
 .serialize <- function(object){
-    serialize(object, NULL, xdr = FALSE)
+    ## Suppress the warning "'package:stats' may not be available when loading"
+    ## in the serialize function
+    ## as it does not provides any useful information to the user
+    suppressWarnings(serialize(object, NULL, xdr = FALSE))
 }
 
 .unserialize <- function(object){
     unserialize(object)
 }
 
-## Redis APIs
-.setClientName <-
-    function(x, name)
-{
-    x$api_client$CLIENT_SETNAME(name)
-}
-
-.listClients <-
+## Redis functions
+.quit <-
     function(x)
 {
-    x$api_client$CLIENT_LIST()
+    x$api_client$QUIT()
+    NULL
 }
-
-.eval <- function(x, scriptName, keys = NULL, args = NULL){
+.eval <-
+    function(x, scriptName, keys = NULL, args = NULL)
+{
     stopifnot(scriptName%in%names(luaScripts))
     script <- luaScripts[[scriptName]]
     tryCatch(
@@ -193,23 +203,19 @@ isNoScriptError <- function(e){
 .move <-
     function(x, source, dest, timeout = 1)
 {
-    value <- x$api_client$BRPOPLPUSH(
+    x$api_client$BRPOPLPUSH(
         source = source,
         destination = dest,
         timeout = timeout
     )
-    if(is.null(value))
-        NULL
-    else
-        value
 }
 
-.pipeGetElt <- function(key, idx){
+.pipeGetElt <-
+    function(key, idx)
+{
     redis$LRANGE(key, idx, idx)
 }
 
-
-## The high level function built upon the wrappers
 .initializeWorker <-
     function(x)
 {
@@ -233,7 +239,10 @@ isNoScriptError <- function(e){
     }
 }
 
-.cleanupManager <- function(x){
+.cleanupManager <-
+    function(x)
+{
+    ## Completely remove the manager data
     managerTaskSet <- .managerTaskSetName(x$id)
     managerResultQueue <- .managerResultQueueName(x$id)
     waitingTaskIds <- unlist(x$api_client$SMEMBERS(managerTaskSet))
@@ -244,11 +253,13 @@ isNoScriptError <- function(e){
     )
 }
 
-.cleanupWorker <- function(x){
+.cleanupWorker <-
+    function(x)
+{
+    ## Completely remove the worker data
     workerTaskCache <- .workerTaskCacheName(x$id)
     workerTaskQueue <- .workerTaskQueueName(x$id)
-    redis$pipeline(
-        redis$QUIT(),
+    x$api_client$pipeline(
         redis$DEL(workerTaskCache),
         redis$DEL(workerTaskQueue)
     )
@@ -258,7 +269,7 @@ isNoScriptError <- function(e){
     function(x)
 {
     prefix <- .clientName(x$jobname, "worker", "")
-    clients <- .listClients(x)
+    clients <- x$api_client$CLIENT_LIST()
     idx <- gregexpr(paste0(" name=", prefix, ".+? "), clients)
     clientsNames <- regmatches(clients, idx)[[1]]
     ## Remove the prefix and the tailing space
@@ -271,15 +282,17 @@ isNoScriptError <- function(e){
     workerIds <- bpworkers(x)
     managerTaskSet <- .managerTaskSetName(x$id)
     publicTaskQueue <- .publicTaskQueueName(x$jobname)
+    ## Find and resubmit the missing task
     missingWorkers <- .eval(x,
                          "resubmit_missing_tasks",
                          c(publicTaskQueue, managerTaskSet),
                          workerIds)
     missingWorkers <- unlist(missingWorkers)
     if(length(missingWorkers)){
-        message(length(missingWorkers), " tasks are missing from the job and has been resubmitted.")
-        missingWorkerTaskQueues <- .workerTaskQueueName(missingWorkers)
-        x$api_client$pipeline(redis$DEL(missingWorkerTaskQueues))
+        message(
+            length(missingWorkers),
+            " tasks are missing from the job and has been resubmitted."
+        )
     }
     missingWorkers
 }
@@ -289,11 +302,11 @@ isNoScriptError <- function(e){
 {
     managerResultQueue <- .managerResultQueueName(x$id)
     taskId <- .taskId(x)
-    if(workerId == "public"){
-        workerTaskQueue <- .publicTaskQueueName(x$jobname)
-    }else{
-        workerTaskQueue <- .workerTaskQueueName(workerId)
-    }
+    workerTaskQueue <- ifelse(
+        workerId == "public",
+        .publicTaskQueueName(x$jobname),
+        .workerTaskQueueName(workerId)
+    )
     managerTaskSet <- .managerTaskSetName(x$id)
     x$api_client$pipeline(
         redis$RPUSH(taskId, managerResultQueue),
@@ -304,47 +317,52 @@ isNoScriptError <- function(e){
     )
 }
 
-.selectQueue <- function(x){
+.selectTaskQueue <- function(x){
     workerTaskQueue <- .workerTaskQueueName(x$id)
     publicTaskQueue <- .publicTaskQueueName(x$jobname)
     lengths <- x$api_client$pipeline(
         worker = redis$LLEN(workerTaskQueue),
         public = redis$LLEN(publicTaskQueue)
     )
-    if(lengths$worker == 0 && lengths$public != 0){
-        queueName <- publicTaskQueue
-    }else{
-        queueName <- workerTaskQueue
-    }
-    if(lengths$worker != 0 || lengths$public != 0){
-        waitTime <- 0.01
-    }else{
-        waitTime <- 1
-    }
+    if(lengths$worker == 0 && lengths$public == 0)
+        stop("The job queue has been corrputed!")
+
+    queueName <- ifelse(
+        lengths$worker == 0 && lengths$public != 0,
+        publicTaskQueue,
+        workerTaskQueue
+    )
+    waitTime <- ifelse(
+        lengths$worker != 0 || lengths$public != 0,
+        0.01,
+        1
+    )
     list(queueName = queueName, waitTime = waitTime)
 }
 
 .popJob <-
     function(x)
 {
-    ## The function is not an atomic operation
+    ## The function is not an atomic operation.
     ## We should expect that the task can be
-    ## invalid when trying to get the value of the task
+    ## invalid when trying to get the value of the task,
+    ## so I add this while loop
     existsTask <- FALSE
     while(!existsTask){
         workerTaskCache <- .workerTaskCacheName(x$id)
-        taskId <- .wait_until_success({
-            queueInfo <- .selectQueue(x)
-            .move(
-                x,
-                source = queueInfo$queueName,
-                dest = workerTaskCache,
-                timeout = queueInfo$waitTime
-            )
-        }
-        ,
-        timeout = Inf,
-        errorMsg = "Redis pop operation timeout"
+        taskId <- .wait_until_success(
+            {
+                queueInfo <- .selectTaskQueue(x)
+                .move(
+                    x,
+                    source = queueInfo$queueName,
+                    dest = workerTaskCache,
+                    timeout = queueInfo$waitTime
+                )
+            }
+            ,
+            timeout = Inf,
+            errorMsg = "Redis pop operation timeout"
         )
         response <- x$api_client$pipeline(
             existsTask = redis$EXISTS(taskId),
@@ -363,7 +381,7 @@ isNoScriptError <- function(e){
     taskId <- unlist(x$api_client$LRANGE(workerTaskCache,0,0))
     ## If someone messes up the job queue
     if(is.null(taskId)){
-        return()
+        return(0)
     }
     response <- x$api_client$pipeline(
         taskExist = redis$EXISTS(taskId),
@@ -371,6 +389,8 @@ isNoScriptError <- function(e){
         workerId = .pipeGetElt(taskId, taskEltIdx$workerId)
     )
     value <- .serialize(list(taskId = taskId, value = value))
+    ## submit the result only when the task exists and
+    ## the worker ID matches the current worker
     if(response$taskExist &&
        response$workerId[[1]] == x$id){
         x$api_client$pipeline(
@@ -378,8 +398,11 @@ isNoScriptError <- function(e){
                 response$resultQueue[[1]],
                 value),
             redis$DEL(c(workerTaskCache, taskId))
-        )
+        )[[1]]
+    }else{
+        0
     }
+
 }
 
 .popResult <-
@@ -414,8 +437,6 @@ length.RedisBackend <-
 ## Worker
 
 #' @rdname RedisBackend-class
-#'
-#' @export
 setMethod(".recv", "RedisBackend",
     function(worker)
 {
@@ -423,8 +444,6 @@ setMethod(".recv", "RedisBackend",
 })
 
 #' @rdname RedisBackend-class
-#'
-#' @export
 setMethod(".send", "RedisBackend",
     function(worker, value)
 {
@@ -432,22 +451,17 @@ setMethod(".send", "RedisBackend",
 })
 
 #' @rdname RedisBackend-class
-#'
-#' @export
 setMethod(".close", "RedisBackend",
     function(worker)
 {
-    if (!identical(worker, .redisNULL())) {
+    if (!identical(worker, .redisNULL()))
         .cleanupWorker(worker)
-    }
     invisible(NULL)
 })
 
 ## Manager
 
 #' @rdname RedisBackend-class
-#'
-#' @export
 setMethod(".recv_any", "RedisBackend",
     function(backend)
 {
@@ -464,13 +478,11 @@ setMethod(".recv_any", "RedisBackend",
 })
 
 #' @rdname RedisBackend-class
-#'
-#' @export
 setMethod(".recv_all", "RedisBackend",
     function(backend)
 {
     managerTaskSet <- .managerTaskSetName(backend$id)
-    replicate(backend$api_client$LLEN(managerTaskSet),
+    replicate(backend$api_client$SCARD(managerTaskSet),
               .recv_any(backend), simplify=FALSE)
 })
 
@@ -484,9 +496,8 @@ isbploop <- function(calls){
         as.character(calls[[length(calls) - 2]]))
     }
 }
+
 #' @rdname RedisBackend-class
-#'
-#' @export
 setMethod(".send_to", "RedisBackend",
     function(backend, node, value)
 {
@@ -494,8 +505,8 @@ setMethod(".send_to", "RedisBackend",
         {
             ## We only dispatch the task to the public queue when
             ## 1. .send_to is called by bploop
-            ## 2. The seed is disabled
-            if(!backend$seed && isbploop(sys.calls())){
+            ## 2. The RNGseed is disabled
+            if(!backend$RNGseed && isbploop(sys.calls())){
                 .debug(backend, "A task is sent to the public queue")
                 node <- "public"
             }else{
@@ -527,7 +538,8 @@ setMethod(bpworkers, "RedisBackend",
     if (identical(x, .redisNULL())) {
         character()
     } else {
-        .allWorkers(x)
+        ## enforce the worker order
+        sort(.allWorkers(x))
     }
 })
 
@@ -551,11 +563,13 @@ setMethod(bplog, "RedisBackend",
 
 ## Show the backend task status
 ## For debugging purpose only
-bpstatus <-
+.rpstatus <-
     function(x)
 {
-    if(is(x, "RedisParam"))
+    if (is(x, "RedisParam"))
         x <- bpbackend(x)
+    if (identical(x, .redisNULL()))
+        return(NULL)
 
     if(x$type == "manager"){
         workerIds <- bpworkers(x)
@@ -601,4 +615,12 @@ bpstatus <-
         list(privateTask = length(status$privateTask),
              workerTaskCache = length(status$workerTaskCache))
     }
+}
+
+.resetRedis <- function(x){
+    if(is(x, "RedisParam"))
+        x <- bpbackend(x)
+    if (identical(x, .redisNULL()))
+        return(NULL)
+    x$api_client$FLUSHALL
 }
