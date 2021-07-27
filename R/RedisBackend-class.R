@@ -152,6 +152,7 @@ isNoScriptError <-
     frame <- parent.frame()
     expr <- substitute(expr)
     operationWhileWaiting <- substitute(operationWhileWaiting)
+    .value <- NULL
     start_time <- Sys.time()
     repeat {
         .value <- eval(expr, envir = frame)
@@ -293,19 +294,21 @@ isNoScriptError <-
 {
     workerIds <- bpworkers(x)
     managerTaskSet <- .managerTaskSetName(x$id)
+    managerResultQueue <- .managerResultQueueName(x$id)
     publicTaskQueue <- .publicTaskQueueName(x$jobname)
     ## Find and resubmit the missing task
-    missingWorkers <- .eval(x,
+    response <- .eval(x,
                          "resubmit_missing_tasks",
-                         c(publicTaskQueue, managerTaskSet),
+                         c(publicTaskQueue, managerTaskSet, managerResultQueue),
                          workerIds)
-    missingWorkers <- unlist(missingWorkers)
+    missingWorkers <- unlist(response[[1]])
+    taskNum <- response[[2]]
     if (length(missingWorkers))
         message(
             length(missingWorkers),
             " tasks are missing from the job and has been resubmitted."
         )
-    missingWorkers
+    taskNum
 }
 
 .pushJob <-
@@ -335,9 +338,6 @@ isNoScriptError <-
         worker = redis$LLEN(workerTaskQueue),
         public = redis$LLEN(publicTaskQueue)
     )
-    if (lengths$worker == 0 && lengths$public == 0)
-        stop("The job queue has been corrputed!")
-
     queueName <- ifelse(
         lengths$worker == 0 && lengths$public != 0,
         publicTaskQueue,
@@ -424,7 +424,12 @@ isNoScriptError <-
         ),
         timeout = x$timeout,
         errorMsg = "Redis pop operation timeout",
-        operationWhileWaiting = .resubmitMissingTasks(x)
+        operationWhileWaiting = {
+            taskNum <- .resubmitMissingTasks(x)
+            if(taskNum == 0L){
+                stop("The job queue has been corrputed!")
+            }
+        }
     )
     response <- unserialize(response[[2]])
     x$api_client$pipeline(

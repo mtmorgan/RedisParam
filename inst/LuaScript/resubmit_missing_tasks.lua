@@ -1,5 +1,6 @@
 local publicTaskQueue = KEYS[1]
 local managerTaskSet = KEYS[2]
+local managerResultQueue = KEYS[3]
 local liveWorkers = ARGV
 
 local missingWorker = {}
@@ -30,4 +31,7 @@ for i = 1, #waitingTask, 1 do
     end
 end
 
-return missingWorker
+local waitingTaskNum = #waitingTask
+local resultNum = redis.call("llen", managerResultQueue)
+
+return {missingWorker, waitingTaskNum + resultNum}
