@@ -7,10 +7,8 @@ manager <- NULL
 worker1 <- NULL
 worker2 <- NULL
 
-
-
 test_that("Creating RedisBackend", {
-    expect_error(manager <<- RedisBackend(jobname = jobname, type = "manager", id = "manager1"), NA)
+    expect_error(manager <<- RedisBackend(jobname = jobname, type = "manager", id = "manager1", workerOffset = 0L), NA)
     expect_error(worker1 <<- RedisBackend(jobname = jobname, type = "worker", id = "worker1"), NA)
     expect_error(worker2 <<- RedisBackend(jobname = jobname, type = "worker", id = "worker2"), NA)
 })
@@ -29,28 +27,30 @@ test_that(".send_to", {
     .send_to(manager, 1, taskValue)
     expect_equal(
         bpstatus(manager),
-        list(waitingTask = 1L,
+        list(publicTask = 0L,
+             privateTask = 1L,
+             waitingTask = 1L,
              runningTask = 0L,
+             finishedTask = 0L,
              missingTask = 0L,
-             doneTask = 0L,
              workerNum = 2L)
     )
     expect_equal(
         bpstatus(worker1),
-        list(publicTask = 0L, privateTask = 1L, cache = 0L)
+        list(privateTask = 1L, workerTaskCache = 0L)
     )
     expect_equal(
         bpstatus(worker2),
-        list(publicTask = 0L, privateTask = 0L, cache = 0L)
+        list(privateTask = 0L, workerTaskCache = 0L)
     )
 })
 
 test_that(".recv", {
     ## Worker1 will receive the task
     expect_equal(.recv(worker1), taskValue)
-    expect_identical(
+    expect_equal(
         bpstatus(worker1),
-        list(publicTask = 0L, privateTask = 0L, cache = 1L)
+        list(privateTask = 0L, workerTaskCache = 1L)
     )
 })
 
@@ -60,42 +60,48 @@ test_that(".resubmitMissingTasks", {
     gc()
     expect_equal(
         bpstatus(manager),
-        list(waitingTask = 0L,
+        list(publicTask = 0L,
+             privateTask = 1L,
+             waitingTask = 0L,
              runningTask = 0L,
+             finishedTask = 0L,
              missingTask = 1L,
-             doneTask = 0L,
              workerNum = 1L)
     )
     .resubmitMissingTasks(manager)
     expect_equal(
         bpstatus(manager),
-        list(waitingTask = 1L,
+        list(publicTask = 1L,
+             privateTask = 0L,
+             waitingTask = 1L,
              runningTask = 0L,
+             finishedTask = 0L,
              missingTask = 0L,
-             doneTask = 0L,
              workerNum = 1L)
     )
     ## Let worker2 take over the task
     expect_equal(.recv(worker2), taskValue)
-    expect_identical(
+    expect_equal(
         bpstatus(worker2),
-        list(publicTask = 0L, privateTask = 0L, cache = 1L)
+        list(privateTask = 0L, workerTaskCache = 1L)
     )
 })
 
 
 test_that(".pushResult", {
     expect_error(.pushResult(worker2, resultValue), NA)
-    expect_identical(
+    expect_equal(
         bpstatus(worker2),
-        list(publicTask = 0L, privateTask = 0L, cache = 0L)
+        list(privateTask = 0L, workerTaskCache = 0L)
     )
     expect_equal(
         bpstatus(manager),
-        list(waitingTask = 0L,
+        list(publicTask = 0L,
+             privateTask = 0L,
+             waitingTask = 0L,
              runningTask = 0L,
+             finishedTask = 1L,
              missingTask = 0L,
-             doneTask = 1L,
              workerNum = 1L)
     )
 })
@@ -107,10 +113,12 @@ test_that(".recv_any", {
     expect_equal(.popResult(manager), resultValue)
     expect_equal(
         bpstatus(manager),
-        list(waitingTask = 0L,
+        list(publicTask = 0L,
+             privateTask = 0L,
+             waitingTask = 0L,
              runningTask = 0L,
+             finishedTask = 0L,
              missingTask = 0L,
-             doneTask = 0L,
              workerNum = 1L)
     )
 })

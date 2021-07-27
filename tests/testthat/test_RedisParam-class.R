@@ -34,3 +34,28 @@ test_that("RedisParam local workers", {
     expect_true(validObject(p))
     expect_false(bpisup(p))
 })
+
+
+
+test_that("RedisParam local workers with a long running job", {
+    p <- RedisParam(2L)
+    skip_if_not(rpalive(p))
+
+    p <- bpstart(p)
+    expect_s4_class(p, "RedisParam")
+    expect_true(validObject(p))
+    expect_true(bpisup(p))
+
+    result <- bplapply(1:5,
+                       function(i) {
+                           sleep(2)
+                           Sys.getpid()
+                       }, BPPARAM = p)
+    expect_identical(length(result), 5L)
+    expect_identical(length(unique(unlist(result))), 2L)
+
+    p <- bpstop(p)
+    expect_s4_class(p, "RedisParam")
+    expect_true(validObject(p))
+    expect_false(bpisup(p))
+})

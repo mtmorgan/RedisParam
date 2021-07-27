@@ -88,7 +88,7 @@ RedisBackend <-
     x
 }
 
-## index for the values in the list taskId in Redis
+## index for the values in the list object `taskId` in Redis
 taskEltIdx <- list(
     managerResultQueue = 0L,
     taskValue = 1L,
@@ -96,7 +96,7 @@ taskEltIdx <- list(
 )
 
 ## Naming rule
-## Randomly generated task ID
+## The task ID is random
 .taskId <- function(x){
     paste0("RedisParam_task_", ipcid())
 }
@@ -476,9 +476,13 @@ setMethod(".recv_all", "RedisBackend",
 
 
 isbploop <- function(calls){
-    identical(
+    if(length(calls)<=2){
+        FALSE
+    }else{
+        identical(
         c("bploop.lapply", "cls", "X", "lapply", "ARGFUN", "BPPARAM"),
         as.character(calls[[length(calls) - 2]]))
+    }
 }
 #' @rdname RedisBackend-class
 #'
@@ -491,7 +495,7 @@ setMethod(".send_to", "RedisBackend",
             ## We only dispatch the task to the public queue when
             ## 1. .send_to is called by bploop
             ## 2. The seed is disabled
-            if(isbploop(sys.calls()) && !backend$seed){
+            if(!backend$seed && isbploop(sys.calls())){
                 .debug(backend, "A task is sent to the public queue")
                 node <- "public"
             }else{
@@ -533,7 +537,19 @@ setMethod(bplog, "RedisBackend",
     x$log
 })
 
-## Show the backend status
+.workerStatus <- function(x, workerId){
+    workerTaskQueue <- .workerTaskQueueName(workerId)
+    workerTaskCache <- .workerTaskCacheName(workerId)
+    response <- x$api_client$pipeline(
+        privateTask = redis$LRANGE(workerTaskQueue, 0, -1),
+        workerTaskCache = redis$LRANGE(workerTaskCache, 0, -1)
+    )
+    response$privateTask <- unlist(response$privateTask)
+    response$workerTaskCache <- unlist(response$workerTaskCache)
+    response
+}
+
+## Show the backend task status
 ## For debugging purpose only
 bpstatus <-
     function(x)
@@ -546,29 +562,43 @@ bpstatus <-
         workerNum <- length(workerIds)
         managerTaskSet <- .managerTaskSetName(x$id)
         managerResultQueue <- .managerResultQueueName(x$id)
-        doneTasksNum <- x$api_client$LLEN(managerResultQueue)
-        waitingTaskIds <- x$api_client$SMEMBERS(managerTaskSet)
-        ## Get the worker id
-        commands <- lapply(waitingTaskIds,
+        finishedTask <- x$api_client$LLEN(managerResultQueue)
+        managerTaskIds <- unlist(x$api_client$SMEMBERS(managerTaskSet))
+        ## Get the worker id from the task
+        commands <- lapply(managerTaskIds,
                            function(i) .pipeGetElt(i, taskEltIdx$workerId))
         taskWorkerIds <- unlist(x$api_client$pipeline(.commands = commands))
-        waitingTaskNum <- sum(taskWorkerIds == "")
-        taskWorkerIds <- taskWorkerIds[taskWorkerIds != ""]
-        runningTaskNum <- sum(taskWorkerIds%in%workerIds)
-        missingTaskNum <- length(taskWorkerIds) - runningTaskNum
-        list(waitingTask = waitingTaskNum,
-             runningTask = runningTaskNum,
-             missingTask = missingTaskNum,
-             doneTask = doneTasksNum,
-             workerNum = workerNum)
+        ## calculate public and private task number
+        publicTask <- taskWorkerIds == "public"
+        publicTaskNum <- sum(publicTask)
+        privateTaskNum <- length(taskWorkerIds) - publicTaskNum
+        taskWorkerIds <- taskWorkerIds[!publicTask]
+
+        ## Check if the worker is still working on the private task
+        ## filter out the dead worker
+        uniqueIds <- unique(taskWorkerIds)
+        liveWorker <- uniqueIds %in% workerIds
+        workerStatus <- lapply(uniqueIds[liveWorker],
+                               function(i) .workerStatus(x, i))
+
+        waitingTasks <- unlist(lapply(workerStatus, function(x) x$privateTask))
+        runningTasks <- unlist(lapply(workerStatus, function(x) x$workerTaskCache))
+
+        waitingTaskNum <- publicTaskNum + sum(managerTaskIds %in% waitingTasks)
+        runningTaskNum <- sum(managerTaskIds %in% runningTasks)
+        missingTaskNum <- length(managerTaskIds) - waitingTaskNum - runningTaskNum - finishedTask
+
+        list(
+            publicTask = publicTaskNum,
+            privateTask = privateTaskNum,
+            waitingTask = waitingTaskNum,
+            runningTask = runningTaskNum,
+            finishedTask = finishedTask,
+            missingTask = missingTaskNum,
+            workerNum = workerNum)
     }else{
-        publicTaskQueue <- .publicTaskQueueName(x$jobname)
-        workerTaskQueue <- .workerTaskQueueName(x$id)
-        workerTaskCache <- .workerTaskCacheName(x$id)
-        x$api_client$pipeline(
-            publicTask = redis$LLEN(publicTaskQueue),
-            privateTask = redis$LLEN(workerTaskQueue),
-            cache = redis$LLEN(workerTaskCache)
-        )
+        status <- .workerStatus(x, x$id)
+        list(privateTask = length(status$privateTask),
+             workerTaskCache = length(status$workerTaskCache))
     }
 }
