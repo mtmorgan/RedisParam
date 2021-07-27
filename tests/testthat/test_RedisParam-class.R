@@ -57,9 +57,9 @@ test_that("RedisParam constructor works", {
 })
 
 test_that("RedisParam local workers", {
-    p <- RedisParam(2L)
-    skip_if_not(rpalive(p))
+    skip_if_not(rpalive())
 
+    p <- RedisParam(2L)
     p <- bpstart(p)
     expect_s4_class(p, "RedisParam")
     expect_true(validObject(p))
@@ -79,9 +79,9 @@ test_that("RedisParam local workers", {
 })
 
 test_that("RedisParam local workers with a long running job", {
-    p <- RedisParam(2L)
-    skip_if_not(rpalive(p))
+    skip_if_not(rpalive())
 
+    p <- RedisParam(2L)
     p <- bpstart(p)
     expect_equal(bpnworkers(p), 2L)
 
@@ -97,8 +97,9 @@ test_that("RedisParam local workers with a long running job", {
 })
 
 test_that("RedisParam RNGseed test", {
+    skip_if_not(rpalive())
+
     p <- RedisParam(2L, RNGseed = 1)
-    skip_if_not(rpalive(p))
 
     ## Check if the task is sent to the private queue
     p <- bpstart(p)

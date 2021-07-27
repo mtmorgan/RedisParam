@@ -1,5 +1,5 @@
 test_that("Creating RedisBackend succeeds", {
-    skip_if_not(rpalive(RedisParam(1L)))
+    skip_if_not(rpalive())
 
     jobname <- BiocParallel::ipcid()
     expect_true(validObject(RedisBackend(jobname = jobname, type = "manager")))
