@@ -345,7 +345,7 @@ isNoScriptError <-
     )
     waitTime <- ifelse(
         lengths$worker != 0 || lengths$public != 0,
-        0.01,
+        0,
         1
     )
     list(queueName = queueName, waitTime = waitTime)

@@ -32,7 +32,7 @@ NULL
 .bpstart_redis_worker_in_background <-
     function(x)
 {
-    nworkers <- bpnworkers(x)
+    nworkers <- x$workers
     .info(x, "starting %d worker(s) in the background", nworkers)
 
     redisIds <- vapply(seq_len(nworkers), function(i) ipcid(), character(1))
@@ -192,6 +192,20 @@ setMethod("bpstop", "RedisParam",
     gc()                                # close connections
 
     invisible(x)
+})
+
+
+#' @rdname RedisParam-class
+#'
+#' @export
+setMethod("bpworkers", "RedisParam",
+    function(x)
+{
+    if(bpisup(x)){
+        bpworkers(bpbackend(x))
+    }else{
+        callNextMethod()
+    }
 })
 
 #' @rdname RedisParam-class
