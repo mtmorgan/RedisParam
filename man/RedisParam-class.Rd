@@ -13,6 +13,7 @@
 \alias{bpbackend,RedisParam-method}
 \alias{bpstart,RedisParam-method}
 \alias{bpstop,RedisParam-method}
+\alias{bpworkers,RedisParam-method}
 \alias{bpstopall}
 \alias{bplog<-,RedisParam,logical-method}
 \alias{bpRNGseed<-,RedisParam,numeric-method}
@@ -57,6 +58,8 @@ rpisworker(x)
 \S4method{bpstart}{RedisParam}(x, ...)
 
 \S4method{bpstop}{RedisParam}(x)
+
+\S4method{bpworkers}{RedisParam}(x)
 
 bpstopall(x)
 
