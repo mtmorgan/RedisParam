@@ -151,7 +151,7 @@ rpalive <-
 {
     tryCatch({
         password <- rppassword(x)
-        if(is.na(password))
+        if (is.na(password))
             password <- NULL
         hiredis(host = rphost(x), port = rpport(x), password = password)
         TRUE

@@ -201,7 +201,7 @@ setMethod("bpstop", "RedisParam",
 setMethod("bpworkers", "RedisParam",
     function(x)
 {
-    if(bpisup(x)){
+    if (bpisup(x)) {
         bpworkers(bpbackend(x))
     }else{
         callNextMethod()
@@ -265,7 +265,7 @@ bpstopall <-
 setReplaceMethod("bplog", c("RedisParam", "logical"),
     function(x, value)
 {
-    if(bpisup(x)){
+    if (bpisup(x)) {
         bpbackend(x)$log <- value
     }
     x$log <- value
@@ -278,7 +278,7 @@ setReplaceMethod("bplog", c("RedisParam", "logical"),
 setReplaceMethod("bpRNGseed", c("RedisParam", "numeric"),
     function(x, value)
 {
-    if(bpisup(x)){
+    if (bpisup(x)) {
         bpbackend(x)$seed <- TRUE
     }
     callNextMethod()
@@ -290,7 +290,7 @@ setReplaceMethod("bpRNGseed", c("RedisParam", "numeric"),
 setReplaceMethod("bpRNGseed", c("RedisParam", "NULL"),
     function(x, value)
 {
-    if(bpisup(x)){
+    if (bpisup(x)) {
         bpbackend(x)$seed <- FALSE
     }
     callNextMethod()

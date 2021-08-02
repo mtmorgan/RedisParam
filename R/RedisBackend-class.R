@@ -427,9 +427,8 @@ isNoScriptError <-
         errorMsg = "Redis pop operation timeout",
         operationWhileWaiting = {
             taskNum <- .resubmitMissingTasks(x)
-            if(taskNum == 0L){
+            if (taskNum == 0L)
                 .error(x, "The job queue has been corrputed!")
-            }
         }
     )
     response <- unserialize(response[[2]])
