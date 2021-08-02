@@ -194,7 +194,8 @@ setMethod("bpstop", "RedisParam",
     invisible(x)
 })
 
-
+## bpworkers must return the correct worker number
+## for making the task division work correctly
 #' @rdname RedisParam-class
 #'
 #' @export
