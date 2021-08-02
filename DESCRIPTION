@@ -20,6 +20,8 @@ License: Artistic-2.0
 Encoding: UTF-8
 RoxygenNote: 7.1.1
 Suggests:
+    rmarkdown,
+    knitr,
     testthat
 LazyData: true
 Collate: 
@@ -29,3 +31,4 @@ Collate:
     'RedisParam-logger.R'
     'RedisParam-methods.R'
     'zzz.R'
+VignetteBuilder: knitr
