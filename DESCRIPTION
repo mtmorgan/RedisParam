@@ -11,6 +11,7 @@ Authors@R: c(
 Description: This package provides a redis-based back-end for BiocParallel,
     enabling an alternative, modern mechanism for distributed computation.
 Depends: R (>= 3.6.0), BiocParallel
+SystemRequirements: Redis(>= 5.0.0)
 Imports:
     methods,
     redux,
