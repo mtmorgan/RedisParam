@@ -169,7 +169,7 @@ isNoScriptError <-
 .serialize <- function(object){
     ## Suppress the warning "'package:stats' may not be available when loading"
     ## in the serialize function
-    ## as it does not provides any useful information to the user
+    ## as it is a bug in Rstuido
     suppressWarnings(serialize(object, NULL, xdr = FALSE))
 }
 
@@ -208,7 +208,7 @@ isNoScriptError <-
                 if (isNoScriptError(e))
                     x$api_client$EVAL(script$value, length(keys), keys, args)
                 else
-                    stop(e)
+                    .error(x, e$message)
             })
 }
 
@@ -428,7 +428,7 @@ isNoScriptError <-
         operationWhileWaiting = {
             taskNum <- .resubmitMissingTasks(x)
             if(taskNum == 0L){
-                stop("The job queue has been corrputed!")
+                .error(x, "The job queue has been corrputed!")
             }
         }
     )
