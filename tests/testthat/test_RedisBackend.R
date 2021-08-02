@@ -5,7 +5,7 @@ test_that("Creating RedisBackend succeeds", {
     expect_true(validObject(RedisBackend(jobname = jobname, type = "manager")))
     expect_true(validObject(RedisBackend(jobname = jobname, type = "worker")))
 
-    gc()
+    gc()# clean-up manager & worker
 })
 
 test_that("Managers and workers start and end correctly", {
@@ -24,11 +24,11 @@ test_that("Managers and workers start and end correctly", {
     expect_null(.quit(manager))
 })
 
-test_that("job dispatching function", {
+test_that("Job dispatching function", {
     skip_if_not(rpalive())
 
     jobname <- BiocParallel::ipcid()
-    manager <- RedisBackend(jobname = jobname,type = "manager")
+    manager <- RedisBackend(jobname = jobname, type = "manager")
     worker <- RedisBackend(jobname = jobname, type = "worker")
 
     ## .send_to
@@ -92,7 +92,7 @@ test_that("job dispatching function", {
     .quit(worker)
 })
 
-test_that("job management", {
+test_that("Job management", {
     skip_if_not(rpalive())
 
     jobname <- BiocParallel::ipcid()

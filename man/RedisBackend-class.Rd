@@ -58,6 +58,17 @@ workers to connect.}
 \item{timeout}{integer(1) The waiting time in `BLPOP`.}
 
 \item{type}{character(1) The type of the backend (manager or worker?).}
+
+\item{id}{character(1) The manager/worker ID. If not given by the user and
+the environment `REDISPARAM_ID` is not defined, a random ID will be used}
+
+\item{workerOffset}{Integer(1) The starting offset of the worker, this is used
+to alleviate the worker conflict when multiple managers are connected with the
+same set of workers.}
+
+\item{RNGseed}{logical(1) Whether the worker uses seed}
+
+\item{log}{logical(1) Whether to enable the log}
 }
 \description{
 Creating the Redis backend

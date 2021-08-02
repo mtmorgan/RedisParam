@@ -27,6 +27,17 @@ setOldClass(c("redisNULL", "RedisBackend"))
 #' @param timeout integer(1) The waiting time in `BLPOP`.
 #'
 #' @param type character(1) The type of the backend (manager or worker?).
+#'
+#' @param id character(1) The manager/worker ID. If not given by the user and
+#' the environment `REDISPARAM_ID` is not defined, a random ID will be used
+#'
+#' @param workerOffset Integer(1) The starting offset of the worker, this is used
+#' to alleviate the worker conflict when multiple managers are connected with the
+#' same set of workers.
+#'
+#' @param RNGseed logical(1) Whether the worker uses seed
+#'
+#' @param log logical(1) Whether to enable the log
 RedisBackend <-
     function(
         RedisParam = NULL, jobname = "",
