@@ -15,13 +15,13 @@ Imports:
     methods,
     redux,
     withr,
-    futile.logger,
-    digest
+    futile.logger
 License: Artistic-2.0
 Encoding: UTF-8
 RoxygenNote: 7.1.1
 Suggests:
     testthat
+LazyData: true
 Collate: 
     'RedisBackend-class.R'
     'RedisParam-class.R'

@@ -1,6 +1,3 @@
-## Loaded in .onLoad
-luaScripts <- new.env()
-
 setOldClass(c("redisNULL", "RedisBackend"))
 
 .redisNULL <-
@@ -54,6 +51,9 @@ RedisBackend <-
     if (is.null(workerOffset)) {
         workerOffset <- sample.int(10000, 1)
     }
+
+    if (is.na(password))
+        password <- NULL
 
     api_client <- hiredis(
         host = host,
@@ -195,6 +195,7 @@ isNoScriptError <-
     x$api_client$QUIT()
     NULL
 }
+
 .eval <-
     function(x, scriptName, keys = NULL, args = NULL)
 {

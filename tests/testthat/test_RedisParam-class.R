@@ -39,7 +39,7 @@ test_that("RedisParam constructor works", {
     )
     expect_identical("127.0.0.1", rphost(p))
     expect_identical(6379L, rpport(p))
-    expect_identical(NULL, rppassword(p))
+    expect_identical(NA_character_, rppassword(p))
 
     withr::with_envvar(
         c(REDIS_PORT = "tcp://10.19.242.166:6379L"),
@@ -117,4 +117,30 @@ test_that("RedisParam RNGseed test", {
     p <- bpstop(p)
     expect_identical(result1, result2)
 })
+
+test_that("RedisParam large loop number test", {
+    skip_if_not(rpalive())
+
+    n <- 1000
+    p <- RedisParam(2L)
+    p <- bpstart(p)
+
+    result <- bplapply(seq_len(n), function(i) i, BPPARAM = p)
+    expect_equal(seq_len(n), unlist(result))
+})
+
+test_that("RedisParam large loop number test", {
+    skip_if_not(rpalive())
+
+    n <- 1000
+    p <- RedisParam(2L)
+    p <- bpstart(p)
+
+    result <- bplapply(seq_len(n), function(i) i, BPPARAM = p)
+    expect_equal(seq_len(n), unlist(result))
+    p <- bpstop(p)
+})
+
+
+
 
