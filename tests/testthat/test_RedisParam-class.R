@@ -143,4 +143,15 @@ test_that("RedisParam large loop number test", {
 
 
 
+test_that("RedisParam worker and tasks number mismatch", {
+  skip_if_not(rpalive())
+  
+  n <- 3
+  p <- RedisParam(2L)
+  p <- bpstart(p)
+  bptasks(p) <- n
+  
+  result <- bplapply(seq_len(n), function(i) i, BPPARAM = p)
+  expect_equal(seq_len(n), unlist(result))
+})
 

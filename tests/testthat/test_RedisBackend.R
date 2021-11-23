@@ -76,7 +76,7 @@ test_that("Job dispatching function", {
 
     ## .recv_any requires the result has a special format
     ## we use its internal function instead
-    expect_equal(.popResult(manager), resultMessage)
+    expect_equal(.popResult(manager)$value, resultMessage)
     expect_equal(
         .rpstatus(manager),
         list(publicTask = 0L,
@@ -151,7 +151,7 @@ test_that("Job management", {
     ## Return result to manager
     resultValue <- "result message"
     expect_identical(.send(worker2, resultValue), 1L)
-    expect_equal(.popResult(manager), resultValue)
+    expect_equal(.popResult(manager)$value, resultValue)
 
     ## clean up
     .quit(manager)

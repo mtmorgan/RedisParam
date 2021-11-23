@@ -103,7 +103,8 @@ RedisBackend <-
 taskEltIdx <- list(
     managerResultQueue = 0L,
     taskValue = 1L,
-    workerId = 2L
+    workerId = 2L,
+    node = 3L
 )
 
 ## Naming rule
@@ -324,7 +325,7 @@ isNoScriptError <-
 }
 
 .pushJob <-
-    function(x, workerId, value)
+    function(x, node, workerId, value)
 {
     managerResultQueue <- .managerResultQueueName(x$id)
     taskId <- .taskId(x)
@@ -338,6 +339,7 @@ isNoScriptError <-
         redis$RPUSH(taskId, managerResultQueue),
         redis$RPUSH(taskId, .serialize(value)),
         redis$RPUSH(taskId, workerId),
+        redis$RPUSH(taskId, node),
         redis$LPUSH(workerTaskQueue, taskId),
         redis$SADD(managerTaskSet, taskId)
     )
@@ -408,14 +410,16 @@ isNoScriptError <-
     response <- x$api_client$pipeline(
         taskExist = redis$EXISTS(taskId),
         resultQueue = .pipeGetElt(taskId, taskEltIdx$managerResultQueue),
-        workerId = .pipeGetElt(taskId, taskEltIdx$workerId)
+        workerId = .pipeGetElt(taskId, taskEltIdx$workerId),
+        node = .pipeGetElt(taskId, taskEltIdx$node)
     )
-    value <- .serialize(list(taskId = taskId, value = value))
     ## continue only when the task exists and
     ## the worker ID matches the current worker
     if (!response$taskExist || response$workerId[[1]] != x$id)
         return(0)
-
+    
+    value <- .serialize(list(taskId = taskId, value = value, node = as.integer(response$node[[1]])))
+    
     x$api_client$pipeline(
         redis$RPUSH(
             response$resultQueue[[1]],
@@ -447,7 +451,7 @@ isNoScriptError <-
         redis$DEL(response$taskId),
         redis$SREM(managerTaskSet, response$taskId)
     )
-    response$value
+    response
 }
 
 #' @export
@@ -490,8 +494,8 @@ setMethod(".recv_any", "RedisBackend",
 {
     tryCatch(
         {
-            value <- .popResult(backend)
-            list(node = value$tag, value = value)
+            response <- .popResult(backend)
+            list(node = response$node, value = response$value)
         },
         interrupt = function(condition){
             .cleanupManager(backend)
@@ -522,14 +526,14 @@ setMethod(".send_to", "RedisBackend",
             ## 2. The RNGseed is disabled
             if (!backend$RNGseed && .isbploop(sys.calls())) {
                 .debug(backend, "A task is sent to the public queue")
-                node <- "public"
+                workerId <- "public"
             } else {
                 .debug(backend, "A task is sent to the worker queue")
                 allWorkers <- bpworkers(backend)
                 idx <- (backend$workerOffset + node - 1)%%length(allWorkers) + 1
-                node <- allWorkers[idx]
+                workerId <- allWorkers[idx]
             }
-            .pushJob(backend, node, value)
+            .pushJob(backend, node, workerId, value)
         },
         interrupt = function(condition){
             .cleanupManager(backend)
