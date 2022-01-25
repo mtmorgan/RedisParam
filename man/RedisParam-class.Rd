@@ -13,7 +13,9 @@
 \alias{bpbackend,RedisParam-method}
 \alias{bpstart,RedisParam-method}
 \alias{bpstop,RedisParam-method}
+\alias{bpworkers,RedisParam-method}
 \alias{bpstopall}
+\alias{bplog<-,RedisParam,logical-method}
 \title{Enable redis-based parallel evaluation in BiocParallel}
 \usage{
 RedisParam(
@@ -25,10 +27,11 @@ RedisParam(
   threshold = "INFO",
   resultdir = NA_character_,
   stop.on.error = TRUE,
-  timeout = 2592000L,
+  timeout = NA_integer_,
   exportglobals = TRUE,
   progressbar = FALSE,
   RNGseed = NULL,
+  queue.multiplier = 2L,
   redis.hostname = rphost(),
   redis.port = rpport(),
   redis.password = rppassword(),
@@ -55,7 +58,11 @@ rpisworker(x)
 
 \S4method{bpstop}{RedisParam}(x)
 
+\S4method{bpworkers}{RedisParam}(x)
+
 bpstopall(x)
+
+\S4method{bplog}{RedisParam,logical}(x) <- value
 }
 \arguments{
 \item{workers}{integer(1) number of redis workers. For `is.worker
@@ -86,6 +93,12 @@ number of workers opened by `bpstart()`.}
 
 \item{RNGseed}{See `?"BiocParallelParam-class"`.}
 
+\item{queue.multiplier}{numeric(1), The multiplier of the queue depth.
+The depth of the queue is calculated by `queue.multiplier * bpnworkers(p)`.
+A proper queue depth can provide more performance benefit in task
+dispatching, but the improvement is likely to be marginal for an excessively
+large `queue.multiplier`.}
+
 \item{redis.hostname}{character(1) host name of redis server,
 from system environment variable `REDISPARAM_HOST` or `REDIS_HOST`,
 if both are not defined, the default `"127.0.0.1"` is used.}
@@ -105,6 +118,8 @@ worker (\code{NA}, default) connections.}
 \item{x}{A `RedisParam` object.}
 
 \item{\dots}{ignored.}
+
+\item{value}{The value you want to replace with}
 }
 \description{
 Enable redis-based parallel evaluation in BiocParallel

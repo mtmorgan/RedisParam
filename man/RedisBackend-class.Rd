@@ -5,20 +5,25 @@
 \alias{.recv,RedisBackend-method}
 \alias{.send,RedisBackend-method}
 \alias{.close,RedisBackend-method}
-\alias{.recv_any,RedisBackend-method}
 \alias{.send_to,RedisBackend-method}
+\alias{.recv_any,RedisBackend-method}
+\alias{.recv_all,RedisBackend-method}
 \alias{bpjobname,RedisBackend-method}
 \alias{bpworkers,RedisBackend-method}
 \title{Creating the Redis backend}
 \usage{
 RedisBackend(
   RedisParam = NULL,
-  jobname = "",
+  jobname = "myjob",
   host = rphost(),
   port = rpport(),
   password = rppassword(),
-  timeout = 2592000L,
-  type = c("manager", "worker")
+  timeout = .Machine$integer.max,
+  type = c("manager", "worker"),
+  id = NULL,
+  log = FALSE,
+  redis.log = NULL,
+  flushInterval = 5L
 )
 
 \S4method{.recv}{RedisBackend}(worker)
@@ -27,9 +32,11 @@ RedisBackend(
 
 \S4method{.close}{RedisBackend}(worker)
 
+\S4method{.send_to}{RedisBackend}(backend, node, value)
+
 \S4method{.recv_any}{RedisBackend}(backend)
 
-\S4method{.send_to}{RedisBackend}(backend, node, value)
+\S4method{.recv_all}{RedisBackend}(backend)
 
 \S4method{bpjobname}{RedisBackend}(x)
 
@@ -51,6 +58,15 @@ workers to connect.}
 \item{timeout}{integer(1) The waiting time in `BLPOP`.}
 
 \item{type}{character(1) The type of the backend (manager or worker?).}
+
+\item{id}{character(1) The manager/worker ID. If not given by the user and
+the environment `REDISPARAM_ID` is not defined, a random ID will be used}
+
+\item{log}{logical(1) Whether to enable the log}
+
+\item{redis.log}{logical(1) Whether to enable the redis server log}
+
+\item{flushInterval}{numeric(1) The waiting time between two flush operation.}
 }
 \description{
 Creating the Redis backend

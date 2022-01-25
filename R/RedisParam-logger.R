@@ -82,3 +82,12 @@ set.log.threshold <-
     }
     stop(value, call. = FALSE)
 }
+
+.redisLog <-
+    function(x, fmt, ...)
+{
+    if (!missing(x) && x$redis.log) {
+        value <- sprintf(fmt, ...)
+        x$redisClient$RPUSH(.redisLogQueue(x$jobname), value)
+    }
+}

@@ -95,8 +95,8 @@ rppassword <-
     } else {
         value <- x$password
     }
-    if (is.na(value)) {
-        NULL
+    if (is.null(value)) {
+        NA_character_
     } else {
         value
     }

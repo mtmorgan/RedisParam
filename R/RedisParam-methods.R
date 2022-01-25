@@ -25,17 +25,23 @@ NULL
         "Listening the Redis server from the host %s, port %d with the password %s",
         rphost(x), rpport(x), rppassword(x)
     )
+
+    ## If more than one worker is required
+    ## start workers in the backgroud
+    nworkers <- x$workers - 1L
+    if (nworkers)
+        .bpstart_redis_worker_in_background(x, nworkers, wait = FALSE)
+    ## Block the current R session
     worker <- RedisBackend(RedisParam = x, type = "worker")
     .bpworker_impl(worker)              # blocking
 }
 
 .bpstart_redis_worker_in_background <-
-    function(x)
+    function(x, nworkers = x$workers, wait = TRUE)
 {
-    nworkers <- bpnworkers(x)
     .info(x, "starting %d worker(s) in the background", nworkers)
 
-    redisIds <- vapply(seq_len(nworkers), function(i) ipcid(), character(1))
+    redisIds <- vapply(seq_len(nworkers), function(i) .randomId(), character(1))
     worker_env <- list(
         REDISPARAM_HOST = rphost(x),
         REDISPARAM_PASSWORD = rppassword(x),
@@ -55,6 +61,9 @@ NULL
         )
     }
 
+    if(!wait)
+        return()
+
     .trace(x, "Waiting for the workers")
     ## Wait until all workers are running
     startTime <- Sys.time()
@@ -63,7 +72,7 @@ NULL
         if (all(success)) {
             break
         }
-        if (difftime(Sys.time(),startTime, units = "secs") > 10) {
+        if (difftime(Sys.time(), startTime, units = "secs") > 10) {
             if (sum(success) == 0) {
                 .error(x, "Fail to start the worker in the background")
             } else {
@@ -75,6 +84,7 @@ NULL
         }
         Sys.sleep(0.5)
     }
+    rpattachedworker(x) <- redisIds[success]
 }
 
 #########################
@@ -180,18 +190,45 @@ setMethod("bpstop", "RedisParam",
     worker <- rpisworker(x)
     if (isTRUE(worker)) {
         ## no-op
-    } else if (isFALSE(worker)) {
-        ## don't stop workers by implicitly setting bpisup() to FALSE
-        bpbackend(x) <- .redisNULL()
-        x <- .bpstop_impl(x)
     } else {
-        ## stop workers
-        x <- .bpstop_impl(x)
-        bpbackend(x) <- .redisNULL()
-    }
-    gc()                                # close connections
+        if (bpisup(x)) {
+            ## stop the workers which are started by the manager
+            workers <- rpattachedworker(x)
+            if (length(workers) >1 || !is.na(workers)) {
+                if (!bpisup(x))
+                    .bpstart_redis_manager(x)
+                backend <- bpbackend(x)
+                workers <- intersect(workers, bpworkers(x))
+                for (i in workers)
+                    .send_to(backend, i, BiocParallel:::.DONE())
+                rpattachedworker(x) <- NA_character_
+            }
 
+            ## Remove the leaking memory
+            .cleanMissingWorkers(bpbackend(x))
+        }
+        ## Do not stop the other workers
+        bpbackend(x) <- .redisNULL()
+        x <- .bpstop_impl(x)
+    }
+
+    gc()                                # close connections
     invisible(x)
+})
+
+## bpworkers must return the correct worker number
+## for making the task division work correctly
+#' @rdname RedisParam-class
+#'
+#' @export
+setMethod("bpworkers", "RedisParam",
+    function(x)
+{
+    if (bpisup(x)) {
+        bpworkers(bpbackend(x))
+    }else{
+        callNextMethod()
+    }
 })
 
 #' @rdname RedisParam-class
@@ -243,12 +280,31 @@ bpstopall <-
     gc()                            # close connections
 
     invisible(x)
-}
+    }
 
+#' @rdname RedisParam-class
+#'
+#' @param value The value you want to replace with
+#' @export
 setReplaceMethod("bplog", c("RedisParam", "logical"),
     function(x, value)
 {
+    if (bpisup(x)) {
+        bpbackend(x)$log <- value
+    }
     x$log <- value
     x
 })
 
+rpattachedworker <-
+    function(x)
+{
+    x$attached.worker
+}
+
+`rpattachedworker<-` <-
+    function(x, value)
+{
+    x$attached.worker <- value
+    x
+}
