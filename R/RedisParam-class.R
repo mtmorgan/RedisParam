@@ -3,7 +3,8 @@
     contains = "BiocParallelParam",
     fields = c(
         hostname = "character", port = "integer", password = "character",
-        backend = "RedisBackend", is.worker = "logical"
+        backend = "RedisBackend", is.worker = "logical",
+        queue.multiplier = "numeric", attached.worker = "character"
     )
 )
 
@@ -11,7 +12,8 @@
     .BiocParallelParam_prototype,
     list(
         hostname = NA_character_, port = NA_integer_, password = NA_character_,
-        backend = .redisNULL(), is.worker = NA
+        backend = .redisNULL(), is.worker = NA, queue.multiplier = 2,
+        attached.worker = NA_character_
     )
 )
 
@@ -46,6 +48,12 @@
 #'
 #' @param jobname character(1) name (unique) used to associate manager
 #'     & workers on a queue.
+#'
+#' @param queue.multiplier numeric(1), The multiplier of the queue depth.
+#'     The depth of the queue is calculated by `queue.multiplier * bpnworkers(p)`.
+#'     A proper queue depth can provide more performance benefit in task
+#'     dispatching, but the improvement is likely to be marginal for an excessively
+#'     large `queue.multiplier`.
 #'
 #' @param redis.hostname character(1) host name of redis server,
 #'     from system environment variable `REDISPARAM_HOST` or `REDIS_HOST`,
@@ -100,9 +108,10 @@ RedisParam <-
     function(
         workers = rpworkers(is.worker), tasks = 0L, jobname = ipcid(),
         log = FALSE, logdir = NA, threshold = "INFO",
-        resultdir = NA_character_, stop.on.error= TRUE,
-        timeout = 2592000L, exportglobals= TRUE,
+        resultdir = NA_character_, stop.on.error = TRUE,
+        timeout = NA_integer_, exportglobals = TRUE,
         progressbar = FALSE, RNGseed = NULL,
+        queue.multiplier = 2L,
         redis.hostname = rphost(), redis.port = rpport(),
         redis.password = rppassword(),
         is.worker = NA
@@ -112,6 +121,8 @@ RedisParam <-
         RNGseed <- as.integer(RNGseed)
     if (!nzchar(redis.password) || is.null(redis.password))
         redis.password <- NA_character_
+    if (isTRUE(is.worker) && missing(jobname))
+        warning("Job name is not specified!")
 
     prototype <- .prototype_update(
         .RedisParam_prototype,
@@ -125,6 +136,7 @@ RedisParam <-
         stop.on.error = as.logical(stop.on.error),
         timeout = as.integer(timeout),
         exportglobals = as.logical(exportglobals),
+        queue.multiplier = as.numeric(queue.multiplier),
         progressbar = as.logical(progressbar),
         RNGseed = RNGseed,
         hostname = as.character(redis.hostname),
@@ -150,7 +162,10 @@ rpalive <-
     function(x)
 {
     tryCatch({
-        hiredis(host = rphost(x), port = rpport(x), password = rppassword(x))
+        password <- rppassword(x)
+        if (is.na(password))
+            password <- NULL
+        hiredis(host = rphost(x), port = rpport(x), password = password)
         TRUE
     }, error = function(e) FALSE)
 }
