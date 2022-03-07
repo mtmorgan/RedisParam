@@ -33,6 +33,7 @@ NULL
         .bpstart_redis_worker_in_background(x, nworkers, wait = FALSE)
     ## Block the current R session
     worker <- RedisBackend(RedisParam = x, type = "worker")
+    on.exit(.QUIT(worker))
     .bpworker_impl(worker)              # blocking
 }
 
