@@ -17,7 +17,7 @@ setMethod(".manager", "RedisParam",
 })
 
 setMethod(".manager_send", "RedisManager",
-    function(manager, value)
+    function(manager, value, ...)
 {
     manager$taskQueue <- append(manager$taskQueue, list(value))
     flushInterval <- manager$backend$flushInterval
