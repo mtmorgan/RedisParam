@@ -125,7 +125,7 @@ test_that("RedisParam stop all workers", {
     p <- RedisParam(2L)
     p <- bpstart(p)
     expect_equal(.rpstatus(p)$workerNum, 2L)
-    bpstopall(p)
+    rpstopall(p)
 
     Sys.sleep(2)
     expect_equal(.rpstatus(p)$workerNum, 0L)
@@ -148,7 +148,7 @@ test_that("RedisParam worker killed by the other reason", {
     p2 <- RedisParam(is.worker = FALSE)
     bpstop(p2)
     expect_equal(.rpstatus(p1)$workerNum, 2L)
-    bpstopall(p2)
+    rpstopall(p2)
     Sys.sleep(1)
     expect_equal(.rpstatus(p1)$workerNum, 2L)
 
@@ -156,7 +156,7 @@ test_that("RedisParam worker killed by the other reason", {
     p3 <- RedisParam(is.worker = FALSE, jobname = jobname)
     bpstop(p3)
     expect_equal(.rpstatus(p1)$workerNum, 2L)
-    bpstopall(p3)
+    rpstopall(p3)
     Sys.sleep(1)
     expect_equal(.rpstatus(p1)$workerNum, 0L)
 

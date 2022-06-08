@@ -43,7 +43,7 @@ unique(unlist(result)) # e.g., 9677
 Independently started workers can be terminated from the manager
 
 ```{r}
-bpstopall(p)
+rpstopall(p)
 ```
 
 # More information

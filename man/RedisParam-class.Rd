@@ -4,6 +4,7 @@
 \name{RedisParam}
 \alias{RedisParam}
 \alias{rpalive}
+\alias{rpstopall}
 \alias{rpworkers}
 \alias{rphost}
 \alias{rpport}
@@ -14,7 +15,6 @@
 \alias{bpstart,RedisParam-method}
 \alias{bpstop,RedisParam-method}
 \alias{bpworkers,RedisParam-method}
-\alias{bpstopall}
 \alias{bplog<-,RedisParam,logical-method}
 \title{Enable redis-based parallel evaluation in BiocParallel}
 \usage{
@@ -40,6 +40,8 @@ RedisParam(
 
 rpalive(x)
 
+rpstopall(x)
+
 rpworkers(is.worker)
 
 rphost(x)
@@ -59,8 +61,6 @@ rpisworker(x)
 \S4method{bpstop}{RedisParam}(x)
 
 \S4method{bpworkers}{RedisParam}(x)
-
-bpstopall(x)
 
 \S4method{bplog}{RedisParam,logical}(x) <- value
 }
@@ -202,7 +202,7 @@ result <- bplapply(1:5, function(i) Sys.getpid(), BPPARAM = p)
 table(unlist(result))
 
 ## stop all workers
-bpstopall(p)
+rpstopall(p)
 }
 
 }

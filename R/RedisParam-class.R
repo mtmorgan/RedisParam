@@ -169,3 +169,78 @@ rpalive <-
         TRUE
     }, error = function(e) FALSE)
 }
+
+#' @rdname RedisParam-class
+#'
+#' @description `rpstopall()` is used from the manager to stop redis
+#'     workers launched independently, with `is.worker=TRUE`.
+#'
+#' @examples
+#' \dontrun{
+#' ## start workers in background proocess(es)
+#' rscript <- R.home("bin/Rscript")
+#' worker_script <- tempfile()
+#' writeLines(c(
+#'     'worker <- RedisParam::RedisParam(jobname = "demo", is.worker = TRUE)',
+#'     'RedisParam::bpstart(worker)'
+#' ), worker_script)
+#'
+#' for (i in seq_len(2))
+#'     system2(rscript, worker_script, wait = FALSE)
+#'
+#' ## start manager
+#' p <- RedisParam(jobname = "demo", is.worker = FALSE)
+#' result <- bplapply(1:5, function(i) Sys.getpid(), BPPARAM = p)
+#' table(unlist(result))
+#'
+#' ## stop all workers
+#' rpstopall(p)
+#' }
+#'
+#' @export
+rpstopall <-
+    function(x)
+{
+    stopifnot(is(x, "RedisParam"))
+    .trace(x, "rpstopall")
+
+    if (isTRUE(rpisworker(x))) {
+        .error(x, "use 'rpstopall()' from manager, not worker")
+    }
+
+    if (!bpisup(x)) {
+        if (!rpalive(x))
+            return(invisible(x))
+        .bpstart_redis_manager(x)
+    }
+
+    .bpstop_impl(x)                 # send 'DONE' to all workers
+    bpbackend(x) <- .redisNULL()
+    gc()                            # close connections
+
+    invisible(x)
+}
+
+#' @rdname RedisParam-deprecated
+#'
+#' @title Deprecated functions in the RedisParam package
+#'
+#' @description `bpstopall()` is provided for compatibility with
+#'     previous versions of RedisParam, and will be defunct after the
+#'     next release. Use `rpstopall()` instead.
+#'
+#' @return See `?rpstopall` for return value.
+#'
+#' @examples
+#' if (FALSE) {
+#'     ## bpstopall()
+#'     ## deprecated -- use rpstopall() instead
+#' }
+#'
+#' @export
+bpstopall <-
+    function(x)
+{
+    .Deprecated("bpstopall")
+    rpstopall(x)
+}

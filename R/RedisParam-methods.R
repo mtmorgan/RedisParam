@@ -234,57 +234,6 @@ setMethod("bpworkers", "RedisParam",
 
 #' @rdname RedisParam-class
 #'
-#' @details `bpstopall()` is used from the manager to stop redis
-#'     workers launched independently, with `is.worker = TRUE`.
-#'
-#' @examples
-#' \dontrun{
-#' ## start workers in background proocess(es)
-#' rscript <- R.home("bin/Rscript")
-#' worker_script <- tempfile()
-#' writeLines(c(
-#'     'worker <- RedisParam::RedisParam(jobname = "demo", is.worker = TRUE)',
-#'     'RedisParam::bpstart(worker)'
-#' ), worker_script)
-#'
-#' for (i in seq_len(2))
-#'     system2(rscript, worker_script, wait = FALSE)
-#'
-#' ## start manager
-#' p <- RedisParam(jobname = "demo", is.worker = FALSE)
-#' result <- bplapply(1:5, function(i) Sys.getpid(), BPPARAM = p)
-#' table(unlist(result))
-#'
-#' ## stop all workers
-#' bpstopall(p)
-#' }
-#'
-#' @export
-bpstopall <-
-    function(x)
-{
-    stopifnot(is(x, "RedisParam"))
-    .trace(x, "bpstopall")
-
-    if (isTRUE(rpisworker(x))) {
-        .error(x, "use 'bpstopall()' from manager, not worker")
-    }
-
-    if (!bpisup(x)) {
-        if (!rpalive(x))
-            return(invisible(x))
-        .bpstart_redis_manager(x)
-    }
-
-    .bpstop_impl(x)                 # send 'DONE' to all workers
-    bpbackend(x) <- .redisNULL()
-    gc()                            # close connections
-
-    invisible(x)
-    }
-
-#' @rdname RedisParam-class
-#'
 #' @param value The value you want to replace with
 #' @export
 setReplaceMethod("bplog", c("RedisParam", "logical"),
