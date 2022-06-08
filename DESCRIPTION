@@ -1,17 +1,25 @@
 Package: RedisParam
 Title: Provide a 'redis' back-end for BiocParallel
-Version: 0.0.10
+Version: 0.99.0
 Authors@R: c(
     person(
         "Martin", "Morgan",
-        email = "Martin.Morgan@RoswellPark.org",
-        role = c("aut", "cre")
+        email = "mtmorgan.bioc@gmail.com",
+        role = c("aut", "cre"),
+        comment = c(ORCID = "0000-0002-5874-8148")
     ),
     person("Jiefei", "Wang", role = "aut"))
-Description: This package provides a redis-based back-end for BiocParallel,
-    enabling an alternative, modern mechanism for distributed computation.
-Depends: R (>= 3.6.0), BiocParallel (>= 1.29.12)
-SystemRequirements: Redis(>= 5.0.0)
+Description: This package provides a Redis-based back-end for
+    BiocParallel, enabling an alternative mechanism for distributed
+    computation. The The 'manager' distributes tasks to a 'worker'
+    pool through a central Redis server, rather than directly to
+    workers as with other BiocParallel implementations. This means
+    that the worker pool can change dynamically during job
+    evaluation. All features of BiocParallel are supported, including
+    reproducible random number streams, logging to the manager, and
+    alternative 'load balancing' task distributions.
+Depends: R (>= 4.2.0), BiocParallel (>= 1.29.12)
+SystemRequirements: hiredis
 Imports:
     methods,
     redux,
@@ -19,13 +27,14 @@ Imports:
     futile.logger
 License: Artistic-2.0
 Encoding: UTF-8
-RoxygenNote: 7.1.2
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.0
 Suggests:
     rmarkdown,
     knitr,
     testthat,
     BiocStyle
-Collate: 
+Collate:
     'Redis.R'
     'RedisBackend-class.R'
     'RedisParam-class.R'
@@ -34,4 +43,5 @@ Collate:
     'RedisParam-methods.R'
     'RedisTaskManager.R'
     'zzz.R'
+biocViews: Infrastructure
 VignetteBuilder: knitr

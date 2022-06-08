@@ -3,7 +3,7 @@
 .RedisManager <- setClass("RedisManager", contains = "environment")
 
 setMethod(".manager", "RedisParam",
-          function(BPPARAM)
+    function(BPPARAM)
 {
     manager <- .RedisManager()
     manager$BPPARAM <- BPPARAM
@@ -48,12 +48,11 @@ setMethod(
 
         dynamicData <- lapply(manager$taskQueue, .task_dynamic)
 
-        .pushTasks(x, dynamicData,
-                   jobQueueName = publicJobQueue,
-                   isPublic = TRUE,
-                   constEnabled = TRUE,
-                   pushConst = !manager$initialized,
-                   constData = constData)
+        .pushTasks(
+            x, dynamicData, jobQueueName = publicJobQueue,
+            isPublic = TRUE, constEnabled = TRUE,
+            pushConst = !manager$initialized, constData = constData
+        )
 
         if (!manager$initialized) {
             manager$initialized <- TRUE
@@ -89,6 +88,3 @@ setMethod(
 
     manager$initialized <- FALSE
 })
-
-
-

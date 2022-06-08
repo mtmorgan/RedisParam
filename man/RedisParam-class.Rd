@@ -65,117 +65,125 @@ rpisworker(x)
 \S4method{bplog}{RedisParam,logical}(x) <- value
 }
 \arguments{
-\item{workers}{integer(1) number of redis workers. For `is.worker
-= FALSE`, this parameter is the maximum number of workers
-expected to be available. For `is.worker = NA`, this is the
-number of workers opened by `bpstart()`.}
+\item{workers}{integer(1) number of redis workers. For
+\code{is.worker=FALSE}, this parameter is the maximum number of
+workers expected to be available. For \code{is.worker=NA}, this is
+the number of workers opened by \code{bpstart()}.}
 
-\item{tasks}{See `?"BiocParallelParam-class"`.}
+\item{tasks}{See \code{?"BiocParallelParam-class"}.}
 
 \item{jobname}{character(1) name (unique) used to associate manager
 & workers on a queue.}
 
-\item{log}{See `?"BiocParallelParam-class"`.}
+\item{log}{See \code{?"BiocParallelParam-class"}.}
 
-\item{logdir}{See `?"BiocParallelParam-class"`.}
+\item{logdir}{See \code{?"BiocParallelParam-class"}.}
 
-\item{threshold}{See `?"BiocParallelParam-class"`.}
+\item{threshold}{See \code{?"BiocParallelParam-class"}.}
 
-\item{resultdir}{See `?"BiocParallelParam-class"`.}
+\item{resultdir}{See \code{?"BiocParallelParam-class"}.}
 
-\item{stop.on.error}{See `?"BiocParallelParam-class"`.}
+\item{stop.on.error}{See \code{?"BiocParallelParam-class"}.}
 
-\item{timeout}{See `?"BiocParallelParam-class"`.}
+\item{timeout}{See \code{?"BiocParallelParam-class"}.}
 
-\item{exportglobals}{See `?"BiocParallelParam-class"`.}
+\item{exportglobals}{See \code{?"BiocParallelParam-class"}.}
 
-\item{progressbar}{See `?"BiocParallelParam-class"`.}
+\item{progressbar}{See \code{?"BiocParallelParam-class"}.}
 
-\item{RNGseed}{See `?"BiocParallelParam-class"`.}
+\item{RNGseed}{See \code{?"BiocParallelParam-class"}.}
 
-\item{queue.multiplier}{numeric(1), The multiplier of the queue depth.
-The depth of the queue is calculated by `queue.multiplier * bpnworkers(p)`.
-A proper queue depth can provide more performance benefit in task
-dispatching, but the improvement is likely to be marginal for an excessively
-large `queue.multiplier`.}
+\item{queue.multiplier}{numeric(1), The multiplier of the queue
+depth.  The depth of the queue is calculated by
+\code{queue.multiplier * bpnworkers(p)}.  A proper queue depth can
+provide more performance benefit in task dispatching, but the
+improvement is likely to be marginal for an excessively large
+\code{queue.multiplier}.}
 
-\item{redis.hostname}{character(1) host name of redis server,
-from system environment variable `REDISPARAM_HOST` or `REDIS_HOST`,
-if both are not defined, the default `"127.0.0.1"` is used.}
+\item{redis.hostname}{character(1) host name of redis server, from
+system environment variable \code{REDISPARAM_HOST} or \code{REDIS_HOST},
+if both are not defined, the default \code{"127.0.0.1"} is used.}
 
 \item{redis.port}{integer(1) port of redis server, from system
-environment variable `REDISPARAM_PORT` or `REDIS_PORT`,
-if both are not defined, the default `6379` is used.}
+environment variable \code{REDISPARAM_PORT} or \code{REDIS_PORT}, if both
+are not defined, the default \code{6379} is used.}
 
-\item{redis.password}{character(1) or NULL, host password of redis server
-from system environment variable `REDISPARAM_PASSWORD` or `REDIS_PASSWORD`,
-if both are not defined, the default `NA_character_` (no password) is used.}
+\item{redis.password}{character(1) or NULL, host password of redis
+server from system environment variable \code{REDISPARAM_PASSWORD}
+or \code{REDIS_PASSWORD}, if both are not defined, the default
+\code{NA_character_} (no password) is used.}
 
 \item{is.worker}{logical(1) \code{bpstart()} creates worker-only
 (\code{TRUE}), manager-only (\code{FALSE}), or manager and
 worker (\code{NA}, default) connections.}
 
-\item{x}{A `RedisParam` object.}
+\item{x}{A \code{RedisParam} object.}
 
 \item{\dots}{ignored.}
 
 \item{value}{The value you want to replace with}
 }
+\value{
+\code{RedisParam()} returns an object of class \code{RedisParam}, for
+use in controlling parallel evaluation with
+\code{BiocParallel::bplapply()} or \code{BiocParallel::bpiterate()}.
+}
 \description{
-Enable redis-based parallel evaluation in BiocParallel
+\code{RedisParam()} creates an object describing manager
+and worker configurations for parallel compuation using a Redis
+server back-end.
+
+\code{rpalive()} tests whether it is possible to connect to
+a redis server using the host, port, and password in the
+\code{RedisParam} object.
+
+\code{rpstopall()} is used from the manager to stop redis
+workers launched independently, with \code{is.worker=TRUE}.
+
+\code{rpworkers()} determines the number of workers using
+\code{snowWorkers()} if workers are created dynamically, or a fixed
+maximum (currently 1000) if workers are listening on a queue.
+
+\code{rphost()} reads the host name of the Redis server from
+the system environment variable \code{REDISPARAM_HOST}, if the
+variable is not defined, fallback to \code{REDIS_HOST}. Otherwise
+default to \code{"127.0.0.1"}. \code{rphost(x)} gives the host name used
+by \code{x}.
+
+\code{rpport()} reads the port of the Redis server from a
+system environment variable \code{REDISPARAM_PORT}, if the variable
+is not defined, fallback to \code{REDIS_PORT}. Otherwise default to
+\code{6379}. \code{rpport(x)} gives the port used by \code{x}.
+
+\code{rppassword()} reads an (optional) password from the
+system environment variable \code{REDISPARAM_PASSWORD}, if the
+variable is not defined, fallback to
+\code{REDIS_PASSWORD}. Otherwise default to \code{NA_character_} (no
+password). \code{rppassword(x)} gives the password used by \code{x}.
 }
 \details{
-Use an instance of `RedisParam()` for interactive parallel
-    evaluation using `bplapply()` or `bpiterate()`. `RedisParam()`
-    requires access to a redis server, running on
-    `manager.hostname` (e.g., 127.0.0.1) at `manager.port` (e.g.,
-    6379). The manager and workers communicate via the redis
-    server, rather than the socket connections used by other
-    BiocParallel back-ends.
+Use an instance of \code{RedisParam()} for interactive parallel
+evaluation using \code{bplapply()} or \code{bpiterate()}. \code{RedisParam()}
+requires access to a redis server, running on \code{manager.hostname}
+(e.g., 127.0.0.1) at \code{manager.port} (e.g., 6379). The manager and
+workers communicate via the redis server, rather than the socket
+connections used by other BiocParallel back-ends.
 
-    When invoked with `is.worker = NA` (the default) `bpstart()`,
-    `bplapply()` and `bpiterate()` start and stop redis workers on
-    the local computer. It may be convenient to use `bpstart()`
-    and `bpstop()` independently, to amortize the cost of worker
-    start-up across multiple calls to `bplapply()` / `bpiterate()`.
+When invoked with \code{is.worker = NA} (the default) \code{bpstart()},
+\code{bplapply()} and \code{bpiterate()} start and stop redis workers on the
+local computer. It may be convenient to use \code{bpstart()} and
+\code{bpstop()} independently, to amortize the cost of worker start-up
+across multiple calls to \code{bplapply()} / \code{bpiterate()}.
 
-    Alternatively, a manager and one or more workers can each be
-    started in different processes across a network. The manager is
-    started, e.g., in an interactive session, by specifying
-    `is.worker = FALSE`. Workers are started, typically as
-    background processes, with `is.worker = TRUE`. Both manager and
-    workers must specify the same value for `jobname =`, the redis
-    key used for communication. In this scenario, workers can be
-    added at any time, including during e.g., `bplapply()`
-    evaluation on the manager. See the vignette for possible
-    scenarios.
-
-`rpalive()` tests whether it is possible to connect to a
-    redis server using the host, port, and password in the
-    `RedisParam` object.
-
-`rpworkers()` determines the number of workers using
-    `snowWorkers()` if workers are created dynamically, or a fixed
-    maximum (currently 1000) if workers are listening on a queue.
-
-    `rphost()` reads the host name of the Redis server from the
-    system environment variable `REDISPARAM_HOST`, if the variable is
-    not defined, fallback to `REDIS_HOST`. Otherwise default to
-    `"127.0.0.1"`. `rphost(x)` gives the host name used by `x`.
-
-    `rpport()` reads the port of the Redis server from a system
-    environment variable `REDISPARAM_PORT`, if the variable is
-    not defined, fallback to `REDIS_PORT`. Otherwise default to
-    `6379`. `rpport(x)` gives the port used by `x`.
-
-    `rppassword()` reads an (optional) password from the system
-    environment variable `REDISPARAM_PASSWORD`, if the variable is
-    not defined, fallback to `REDIS_PASSWORD`. Otherwise default to
-    `NA_character_` (no password). `rppassword(x)` gives the password
-     used by `x`.
-
-`bpstopall()` is used from the manager to stop redis
-    workers launched independently, with `is.worker = TRUE`.
+Alternatively, a manager and one or more workers can each be
+started in different processes across a network. The manager is
+started, e.g., in an interactive session, by specifying
+\code{is.worker=FALSE}. Workers are started, typically as background
+processes, with \code{is.worker = TRUE}. Both manager and workers must
+specify the same value for \verb{jobname =}, the redis key used for
+communication. In this scenario, workers can be added at any time,
+including during e.g., \code{bplapply()} evaluation on the manager. See
+the vignette for possible scenarios.
 }
 \examples{
 param <- RedisParam()

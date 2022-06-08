@@ -6,7 +6,6 @@ setOldClass(c("redisNULL", "RedisBackend"))
     structure(list(), class = c("redisNULL", "RedisBackend"))
 }
 
-
 #' @rdname RedisBackend-class
 #'
 #' @title Creating the Redis backend
@@ -29,14 +28,18 @@ setOldClass(c("redisNULL", "RedisBackend"))
 #'
 #' @param type character(1) The type of the backend (manager or worker?).
 #'
-#' @param id character(1) The manager/worker ID. If not given by the user and
-#' the environment `REDISPARAM_ID` is not defined, a random ID will be used
+#' @param id character(1) The manager/worker ID. If not given by the
+#'     user and the environment `REDISPARAM_ID` is not defined, a
+#'     random ID will be used
 #'
 #' @param log logical(1) Whether to enable the log
 #'
 #' @param redis.log logical(1) Whether to enable the redis server log
 #'
 #' @param flushInterval numeric(1) The waiting time between two flush operation.
+#'
+#' @return `RedisBackend()` returns an object of class
+#'     `RedisBackend`. This object is not useful to the end user.
 RedisBackend <-
     function(
         RedisParam = NULL, jobname = "myjob",
@@ -56,47 +59,33 @@ RedisBackend <-
         log <- bplog(RedisParam)
     }
     type <- match.arg(type)
-    if (is.null(id)) {
-        id <- Sys.getenv("REDISPARAM_ID", .randomId())
-    }
 
+    if (is.null(id))
+        id <- Sys.getenv("REDISPARAM_ID", .randomId())
     if (is.null(redis.log))
         redis.log <- Sys.getenv("REDISPARAM_REDIS_LOG") != ""
-
     if (is.na(password))
         password <- NULL
 
-    redisClient <- hiredis(
-        host = host,
-        port = as.integer(port),
-        password = password)
-
+    redisClient <-
+        hiredis(host = host, port = as.integer(port), password = password)
     clientName <- .clientName(jobname, type, id)
     clients <- redisClient$CLIENT_LIST()
-    if (grepl(clientName, clients, fixed = TRUE)) {
+    if (grepl(clientName, clients, fixed = TRUE))
         stop("Name conflict has been found for the manager/worker '", id, "'")
-    }
     redisClient$CLIENT_SETNAME(clientName)
 
-    x <- structure(
-        list(
-            redisClient = redisClient,
-            jobname = jobname,
-            timeout = as.integer(timeout),
-            type = type,
-            id = id,
-            log = log,
-            redis.log = redis.log,
-            flushInterval = flushInterval,
-            workingSpace = new.env(parent = emptyenv())
-        ),
-        class = "RedisBackend"
-    )
+    x <- structure(list(
+        redisClient = redisClient, jobname = jobname,
+        timeout = as.integer(timeout), type = type, id = id,
+        log = log, redis.log = redis.log, flushInterval = flushInterval,
+        workingSpace = new.env(parent = emptyenv())
+    ), class = "RedisBackend")
+
     if (type == "worker")
         .initializeWorker(x)
     else
         .initializeManager(x)
-
     x
 }
 
@@ -125,8 +114,10 @@ RedisBackend <-
     x <- strsplit(taskId, "_", fixed = TRUE)[[1]]
     isPublic <- x[1] == "pub"
     constEnabled <- x[2] == "sta"
-    managerId <- paste0(x[-(1:3)], collapse = "_")
-    list(isPublic = isPublic, managerId = managerId, constEnabled = constEnabled)
+    managerId <- paste0(x[-seq_len(3)], collapse = "_")
+    list(
+        isPublic = isPublic, managerId = managerId, constEnabled = constEnabled
+    )
 }
 
 .redisLogQueue <-
@@ -262,12 +253,9 @@ RedisBackend <-
     ## get all task names for this manager
     taskIds <- unlist(.SMEMBERS(x, managerTaskSet))
 
-    .DEL(x,
-         c(taskIds,
-           managerTaskSet,
-           managerResultQueue,
-           managerConstQueue
-         )
+    .DEL(
+        x,
+        c(taskIds, managerTaskSet, managerResultQueue, managerConstQueue)
     )
 }
 
@@ -366,12 +354,9 @@ RedisBackend <-
 }
 
 .pushTasks <-
-    function(x, values,
-             jobQueueName,
-             isPublic = TRUE,
-             constEnabled = TRUE,
-             pushConst = TRUE,
-             constData = NULL)
+    function(
+        x, values, jobQueueName, isPublic = TRUE, constEnabled = TRUE,
+        pushConst = TRUE, constData = NULL)
 {
     managerId <- x$id
     managerTaskSet <- .managerTaskSetName(managerId)
@@ -405,35 +390,31 @@ RedisBackend <-
     .pipeline(x, .commands = cmds)
 
     for (i in taskIds)
-        .redisLog(x, "%s  Manager %s pushes task %s to %s. const: %d",
-                  Sys.time(), x$id, i, jobQueueName, pushConst)
+        .redisLog(
+            x, "%s  Manager %s pushes task %s to %s. const: %d",
+            Sys.time(), x$id, i, jobQueueName, pushConst
+        )
 
     taskIds
 }
 
-.popTask <-
+.popTask_id <-
     function(x)
 {
     ## Obtain the task Id
     privateJobQueue <- .privateJobQueueName(x$id)
     publicJobQueue <- .publicJobQueueName(x$jobname)
-    taskId <- .waitUntilSuccess(
+    .waitUntilSuccess(
         .BRPOP(x, c(privateJobQueue, publicJobQueue), 1L)[[2]],
         timeout = Inf,
         errorMsg = "Redis pop operation timeout"
     )
+}
 
-    taskInfo <- .taskInfo(taskId)
-    managerId <- taskInfo$managerId
-    constEnabled <- taskInfo$constEnabled
-
-    ## The worker needs to know this info
-    ## when sending back the result to the manager
-    x$workingSpace$managerId <- managerId
-    x$workingSpace$taskId <- taskId
-
+.popTask_response <-
+    function(x, managerId, taskId, loadConst)
+{
     ## load the const data if required
-    loadConst <- constEnabled && is.null(x$workingSpace$cache[[managerId]])
     cmd1 <- NULL
     if (loadConst) {
         constQueue <- .managerConstQueueName(managerId)
@@ -447,15 +428,32 @@ RedisBackend <-
     workerTaskMap <- .workerTaskMap(x$jobname)
     cmd3 <- list(redis$HSET(workerTaskMap, x$id, taskId))
 
-    cmds <- c(cmd1, cmd2, cmd3)
-    response <- .pipeline(x, .commands = cmds)
+    ## compose the response
+    .pipeline(x, .commands = c(cmd1, cmd2, cmd3))
+}
+
+.popTask <-
+    function(x)
+{
+    ## extract parameters from task
+    taskId <- .popTask_id(x)
+    taskInfo <- .taskInfo(taskId)
+    managerId <- taskInfo$managerId
+    constEnabled <- taskInfo$constEnabled
+
+    ## The worker needs to know this info when sending back the result
+    ## to the manager
+    x$workingSpace$managerId <- managerId
+    x$workingSpace$taskId <- taskId
+
+    ## compose the response
+    loadConst <- constEnabled && is.null(x$workingSpace$cache[[managerId]])
+    response <- .popTask_response(x, managerId, taskId, constEnabled)
 
     ## unserialize the task
-    if (length(response$value) == 0){
-        .warn(x,
-              "Worker %s: The task %s is missing, something is wrong",
-              x$id, taskId
-              )
+    if (length(response$value) == 0) {
+        fmt <- "Worker %s: The task %s is missing, something is wrong"
+        .warn(x, fmt, x$id, taskId)
         return(.popTask(x))
     }
     value <- .unserialize(response$value[[1]])
@@ -477,10 +475,8 @@ RedisBackend <-
     ## remake the task
     value <- .task_remake(value, x$workingSpace$cache[[managerId]])
 
-    .redisLog(x,
-              "%s  Worker %s receives task %s. const: %d",
-              Sys.time(), x$id, taskId, constEnabled
-    )
+    fmt <- "%s  Worker %s receives task %s. const: %d"
+    .redisLog(x, fmt, Sys.time(), x$id, taskId, constEnabled)
 
     value
 }
@@ -509,13 +505,19 @@ RedisBackend <-
 
     ## server log
     if (taskExists) {
-        .redisLog(x, "%s  Worker %s pushes result %s to %s",
-                  Sys.time(), x$id, taskId, managerId)
+        .redisLog(
+            x, "%s  Worker %s pushes result %s to %s",
+            Sys.time(), x$id, taskId, managerId
+        )
     }else{
-        .warn(x, "Worker %s discards result %s",
-              x$id, taskId)
-        .redisLog(x, "%s  Worker %s discards result %s",
-                  Sys.time(), x$id, taskId)
+        .warn(
+            x, "Worker %s discards result %s",
+            x$id, taskId
+        )
+        .redisLog(
+            x, "%s  Worker %s discards result %s",
+            Sys.time(), x$id, taskId
+        )
     }
     NULL
 }
@@ -560,8 +562,10 @@ RedisBackend <-
     values <- values[lengths(values) != 0L]
     results <- lapply(values, .unserialize)
 
-    .redisLog(x, "%s  Manager %s receives %d result",
-              Sys.time(), x$id, length(results))
+    .redisLog(
+        x, "%s  Manager %s receives %d result",
+        Sys.time(), x$id, length(results)
+    )
 
     results
 }
@@ -649,16 +653,13 @@ setMethod(".recv_all", "RedisBackend",
 {
     managerTaskSet <- .managerTaskSetName(backend$id)
     managerResultQueue <- .managerResultQueueName(backend$id)
-    ntasks <- sum(
-        unlist(
-            .pipeline(backend,
-                      redis$SCARD(managerTaskSet),
-                      redis$LLEN(managerResultQueue)
-            )
+    ntasks <- sum(unlist(
+        .pipeline(
+            backend, redis$SCARD(managerTaskSet),
+            redis$LLEN(managerResultQueue)
         )
-    )
-    replicate(ntasks,
-              .recv_any(backend), simplify=FALSE)
+    ))
+    replicate(ntasks, .recv_any(backend), simplify=FALSE)
 })
 
 #' @rdname RedisBackend-class
@@ -686,6 +687,70 @@ setMethod(bplog, "RedisBackend",
     x$log
 })
 
+.rpstatus_manager <-
+    function(x)
+{
+    publicJobQueue <- .publicJobQueueName(x$jobname)
+    managerResultQueue <- .managerResultQueueName(x$id)
+    managerTaskSet <- .managerTaskSetName(x$id)
+    workerTaskMap <- .workerTaskMap(x$jobname)
+
+    workers <- .allWorkers(x)
+
+    ## Commands for obtaining the public job info
+    cmds <- list(
+        publicTasks = redis$LRANGE(publicJobQueue, 0, -1),
+        finishedTasks = redis$LLEN(managerResultQueue),
+        allTasks = redis$SMEMBERS(managerTaskSet)
+    )
+    if (length(workers))
+        cmds$runningTasks <- redis$HMGET(workerTaskMap, workers)
+    response <- .pipeline(x, .commands = cmds)
+
+    publicTasks <- response$publicTasks
+    finishedTasks <- response$finishedTasks
+    allTasks <- response$allTasks
+    runningTasks <- unlist(response$runningTasks)
+
+    ## Commands for obtaining the private job info
+    cmds <- lapply(workers, function(i) {
+        redis$LRANGE(.privateJobQueueName(i), 0 , -1)
+    })
+    privateTasks <- unlist(x$redisClient$pipeline(.commands = cmds))
+
+    workerNum <- length(workers)
+
+    missingTasks <-
+        setdiff(allTasks,
+                c(publicTasks, privateTasks, publicTasks, runningTasks))
+
+    list(
+        publicTasks = length(publicTasks),
+        privateTasks = length(privateTasks),
+        runningTasks = length(runningTasks),
+        finishedTasks = finishedTasks,
+        allTasks = length(allTasks),
+        missingTasks = length(missingTasks),
+        workerNum = workerNum
+    )
+}
+
+.rpstatus_worker <-
+    function(x)
+{
+    privateJobQueue <- .privateJobQueueName(x$id)
+    workerTaskMap <- .workerTaskMap(x$jobname)
+    response <- .pipeline(
+        x,
+        waitingTasks = redis$LLEN(privateJobQueue),
+        runningTasks = redis$HEXISTS(workerTaskMap, x$id)
+    )
+    list(
+        waitingTasks = response$waitingTasks,
+        runningTasks = as.integer(response$runningTasks)
+    )
+}
+
 .rpstatus <-
     function(x)
 {
@@ -698,59 +763,9 @@ setMethod(bplog, "RedisBackend",
         x <- bpbackend(x)
     }
     if (x$type == "manager") {
-        publicJobQueue <- .publicJobQueueName(x$jobname)
-        managerResultQueue <- .managerResultQueueName(x$id)
-        managerTaskSet <- .managerTaskSetName(x$id)
-        workerTaskMap <- .workerTaskMap(x$jobname)
-
-        workers <- .allWorkers(x)
-
-        ## Commands for obtaining the public job info
-        cmds <- list(
-            publicTasks = redis$LRANGE(publicJobQueue, 0, -1),
-            finishedTasks = redis$LLEN(managerResultQueue),
-            allTasks = redis$SMEMBERS(managerTaskSet)
-        )
-        if (length(workers))
-            cmds$runningTasks <- redis$HMGET(workerTaskMap, workers)
-        response <- .pipeline(x, .commands = cmds)
-
-        publicTasks <- response$publicTasks
-        finishedTasks <- response$finishedTasks
-        allTasks <- response$allTasks
-        runningTasks <- unlist(response$runningTasks)
-
-        ## Commands for obtaining the private job info
-        cmds <- lapply(workers, function(i) redis$LRANGE(.privateJobQueueName(i), 0 , -1))
-        privateTasks <- unlist(x$redisClient$pipeline(.commands = cmds))
-
-        workerNum <- length(workers)
-
-        missingTasks <-
-            setdiff(allTasks,
-                    c(publicTasks, privateTasks, publicTasks, runningTasks))
-
-        list(
-            publicTasks = length(publicTasks),
-            privateTasks = length(privateTasks),
-            runningTasks = length(runningTasks),
-            finishedTasks = finishedTasks,
-            allTasks = length(allTasks),
-            missingTasks = length(missingTasks),
-            workerNum = workerNum
-        )
+        .rpstatus_manager(x)
     } else {
-        privateJobQueue <- .privateJobQueueName(x$id)
-        workerTaskMap <- .workerTaskMap(x$jobname)
-        response <- .pipeline(
-            x,
-            waitingTasks = redis$LLEN(privateJobQueue),
-            runningTasks = redis$HEXISTS(workerTaskMap, x$id)
-        )
-        list(
-            waitingTasks = response$waitingTasks,
-            runningTasks = as.integer(response$runningTasks)
-        )
+        .rpstatus_worker(x)
     }
 }
 
@@ -777,4 +792,3 @@ rplog <-
     bpbackend(x)$redis.log <- value
     x
 }
-

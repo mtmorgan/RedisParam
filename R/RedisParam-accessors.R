@@ -6,26 +6,9 @@ NULL
 
 #' @rdname RedisParam-class
 #'
-#' @details
-#'     `rpworkers()` determines the number of workers using
+#' @description `rpworkers()` determines the number of workers using
 #'     `snowWorkers()` if workers are created dynamically, or a fixed
 #'     maximum (currently 1000) if workers are listening on a queue.
-#'
-#'     `rphost()` reads the host name of the Redis server from the
-#'     system environment variable `REDISPARAM_HOST`, if the variable is
-#'     not defined, fallback to `REDIS_HOST`. Otherwise default to
-#'     `"127.0.0.1"`. `rphost(x)` gives the host name used by `x`.
-#'
-#'     `rpport()` reads the port of the Redis server from a system
-#'     environment variable `REDISPARAM_PORT`, if the variable is
-#'     not defined, fallback to `REDIS_PORT`. Otherwise default to
-#'     `6379`. `rpport(x)` gives the port used by `x`.
-#'
-#'     `rppassword()` reads an (optional) password from the system
-#'     environment variable `REDISPARAM_PASSWORD`, if the variable is
-#'     not defined, fallback to `REDIS_PASSWORD`. Otherwise default to
-#'     `NA_character_` (no password). `rppassword(x)` gives the password
-#'      used by `x`.
 #'
 #' @export
 rpworkers <-
@@ -44,6 +27,12 @@ rpworkers <-
 
 #' @rdname RedisParam-class
 #'
+#' @description `rphost()` reads the host name of the Redis server from
+#'     the system environment variable `REDISPARAM_HOST`, if the
+#'     variable is not defined, fallback to `REDIS_HOST`. Otherwise
+#'     default to `"127.0.0.1"`. `rphost(x)` gives the host name used
+#'     by `x`.
+#'
 #' @export
 rphost <-
     function(x)
@@ -58,6 +47,11 @@ rphost <-
 
 #' @rdname RedisParam-class
 #'
+#' @description `rpport()` reads the port of the Redis server from a
+#'     system environment variable `REDISPARAM_PORT`, if the variable
+#'     is not defined, fallback to `REDIS_PORT`. Otherwise default to
+#'     `6379`. `rpport(x)` gives the port used by `x`.
+#'
 #' @export
 rpport <-
     function(x)
@@ -71,11 +65,11 @@ rpport <-
         ## 'REDIS_PORT' is set more-or-less accidentally by docker
         port <- as.integer(value)
         if (is.na(port)) {
-            .error(
-                x,
-                "The 'REDIS_PORT' or 'REDISPARAM_PORT' environment variable cannot be coerced to an integer. The original value was '%s'.",
-                value
+            fmt <- paste0(
+                "The 'REDIS_PORT' or 'REDISPARAM_PORT' environment variable ",
+                "cannot be coerced to an integer. The original value was '%s'."
             )
+            .error(x, fmt, value)
         }
     } else {
         port <- x$port
@@ -84,6 +78,12 @@ rpport <-
 }
 
 #' @rdname RedisParam-class
+#'
+#' @description `rppassword()` reads an (optional) password from the
+#'     system environment variable `REDISPARAM_PASSWORD`, if the
+#'     variable is not defined, fallback to
+#'     `REDIS_PASSWORD`. Otherwise default to `NA_character_` (no
+#'     password). `rppassword(x)` gives the password used by `x`.
 #'
 #' @export
 rppassword <-

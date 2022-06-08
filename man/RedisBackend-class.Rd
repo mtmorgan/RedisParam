@@ -44,7 +44,7 @@ RedisBackend(
 }
 \arguments{
 \item{RedisParam}{RedisParam, if this argument is not NULL, all the
-other arguments will be ignored except `type`.}
+other arguments will be ignored except \code{type}.}
 
 \item{jobname}{character(1) The job name used by the manager and
 workers to connect.}
@@ -55,18 +55,23 @@ workers to connect.}
 
 \item{password}{character(1) The password of the redis server.}
 
-\item{timeout}{integer(1) The waiting time in `BLPOP`.}
+\item{timeout}{integer(1) The waiting time in \code{BLPOP}.}
 
 \item{type}{character(1) The type of the backend (manager or worker?).}
 
-\item{id}{character(1) The manager/worker ID. If not given by the user and
-the environment `REDISPARAM_ID` is not defined, a random ID will be used}
+\item{id}{character(1) The manager/worker ID. If not given by the
+user and the environment \code{REDISPARAM_ID} is not defined, a
+random ID will be used}
 
 \item{log}{logical(1) Whether to enable the log}
 
 \item{redis.log}{logical(1) Whether to enable the redis server log}
 
 \item{flushInterval}{numeric(1) The waiting time between two flush operation.}
+}
+\value{
+\code{RedisBackend()} returns an object of class
+\code{RedisBackend}. This object is not useful to the end user.
 }
 \description{
 Creating the Redis backend

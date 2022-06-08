@@ -6,6 +6,9 @@
 \usage{
 bpstopall(x)
 }
+\arguments{
+\item{x}{a \code{RedisParam} object.}
+}
 \value{
 See \code{?rpstopall} for return value.
 }

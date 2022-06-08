@@ -21,10 +21,14 @@
 #'
 #' @title Enable redis-based parallel evaluation in BiocParallel
 #'
-#' @param workers integer(1) number of redis workers. For `is.worker
-#'     = FALSE`, this parameter is the maximum number of workers
-#'     expected to be available. For `is.worker = NA`, this is the
-#'     number of workers opened by `bpstart()`.
+#' @description `RedisParam()` creates an object describing manager
+#'     and worker configurations for parallel compuation using a Redis
+#'     server back-end.
+#'
+#' @param workers integer(1) number of redis workers. For
+#'     `is.worker=FALSE`, this parameter is the maximum number of
+#'     workers expected to be available. For `is.worker=NA`, this is
+#'     the number of workers opened by `bpstart()`.
 #'
 #' @param tasks See `?"BiocParallelParam-class"`.
 #'
@@ -49,52 +53,56 @@
 #' @param jobname character(1) name (unique) used to associate manager
 #'     & workers on a queue.
 #'
-#' @param queue.multiplier numeric(1), The multiplier of the queue depth.
-#'     The depth of the queue is calculated by `queue.multiplier * bpnworkers(p)`.
-#'     A proper queue depth can provide more performance benefit in task
-#'     dispatching, but the improvement is likely to be marginal for an excessively
-#'     large `queue.multiplier`.
+#' @param queue.multiplier numeric(1), The multiplier of the queue
+#'     depth.  The depth of the queue is calculated by
+#'     `queue.multiplier * bpnworkers(p)`.  A proper queue depth can
+#'     provide more performance benefit in task dispatching, but the
+#'     improvement is likely to be marginal for an excessively large
+#'     `queue.multiplier`.
 #'
-#' @param redis.hostname character(1) host name of redis server,
-#'     from system environment variable `REDISPARAM_HOST` or `REDIS_HOST`,
+#' @param redis.hostname character(1) host name of redis server, from
+#'     system environment variable `REDISPARAM_HOST` or `REDIS_HOST`,
 #'     if both are not defined, the default `"127.0.0.1"` is used.
 #'
 #' @param redis.port integer(1) port of redis server, from system
-#'     environment variable `REDISPARAM_PORT` or `REDIS_PORT`,
-#'     if both are not defined, the default `6379` is used.
+#'     environment variable `REDISPARAM_PORT` or `REDIS_PORT`, if both
+#'     are not defined, the default `6379` is used.
 #'
-#' @param redis.password character(1) or NULL, host password of redis server
-#'     from system environment variable `REDISPARAM_PASSWORD` or `REDIS_PASSWORD`,
-#'     if both are not defined, the default `NA_character_` (no password) is used.
+#' @param redis.password character(1) or NULL, host password of redis
+#'     server from system environment variable `REDISPARAM_PASSWORD`
+#'     or `REDIS_PASSWORD`, if both are not defined, the default
+#'     `NA_character_` (no password) is used.
 #'
 #' @param is.worker logical(1) \code{bpstart()} creates worker-only
 #'     (\code{TRUE}), manager-only (\code{FALSE}), or manager and
 #'     worker (\code{NA}, default) connections.
 #'
 #' @details Use an instance of `RedisParam()` for interactive parallel
-#'     evaluation using `bplapply()` or `bpiterate()`. `RedisParam()`
-#'     requires access to a redis server, running on
-#'     `manager.hostname` (e.g., 127.0.0.1) at `manager.port` (e.g.,
-#'     6379). The manager and workers communicate via the redis
-#'     server, rather than the socket connections used by other
-#'     BiocParallel back-ends.
+#' evaluation using `bplapply()` or `bpiterate()`. `RedisParam()`
+#' requires access to a redis server, running on `manager.hostname`
+#' (e.g., 127.0.0.1) at `manager.port` (e.g., 6379). The manager and
+#' workers communicate via the redis server, rather than the socket
+#' connections used by other BiocParallel back-ends.
 #'
-#'     When invoked with `is.worker = NA` (the default) `bpstart()`,
-#'     `bplapply()` and `bpiterate()` start and stop redis workers on
-#'     the local computer. It may be convenient to use `bpstart()`
-#'     and `bpstop()` independently, to amortize the cost of worker
-#'     start-up across multiple calls to `bplapply()` / `bpiterate()`.
+#' When invoked with `is.worker = NA` (the default) `bpstart()`,
+#' `bplapply()` and `bpiterate()` start and stop redis workers on the
+#' local computer. It may be convenient to use `bpstart()` and
+#' `bpstop()` independently, to amortize the cost of worker start-up
+#' across multiple calls to `bplapply()` / `bpiterate()`.
 #'
-#'     Alternatively, a manager and one or more workers can each be
-#'     started in different processes across a network. The manager is
-#'     started, e.g., in an interactive session, by specifying
-#'     `is.worker = FALSE`. Workers are started, typically as
-#'     background processes, with `is.worker = TRUE`. Both manager and
-#'     workers must specify the same value for `jobname =`, the redis
-#'     key used for communication. In this scenario, workers can be
-#'     added at any time, including during e.g., `bplapply()`
-#'     evaluation on the manager. See the vignette for possible
-#'     scenarios.
+#' Alternatively, a manager and one or more workers can each be
+#' started in different processes across a network. The manager is
+#' started, e.g., in an interactive session, by specifying
+#' `is.worker=FALSE`. Workers are started, typically as background
+#' processes, with `is.worker = TRUE`. Both manager and workers must
+#' specify the same value for `jobname =`, the redis key used for
+#' communication. In this scenario, workers can be added at any time,
+#' including during e.g., `bplapply()` evaluation on the manager. See
+#' the vignette for possible scenarios.
+#'
+#' @return `RedisParam()` returns an object of class `RedisParam`, for
+#'     use in controlling parallel evaluation with
+#'     `BiocParallel::bplapply()` or `BiocParallel::bpiterate()`.
 #'
 #' @examples
 #' param <- RedisParam()
@@ -153,8 +161,8 @@ RedisParam <-
 #'
 #' @param x A `RedisParam` object.
 #'
-#' @details `rpalive()` tests whether it is possible to connect to a
-#'     redis server using the host, port, and password in the
+#' @description `rpalive()` tests whether it is possible to connect to
+#'     a redis server using the host, port, and password in the
 #'     `RedisParam` object.
 #'
 #' @export
@@ -228,6 +236,8 @@ rpstopall <-
 #' @description `bpstopall()` is provided for compatibility with
 #'     previous versions of RedisParam, and will be defunct after the
 #'     next release. Use `rpstopall()` instead.
+#'
+#' @param x a `RedisParam` object.
 #'
 #' @return See `?rpstopall` for return value.
 #'

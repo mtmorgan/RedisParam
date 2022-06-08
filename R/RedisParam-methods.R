@@ -20,11 +20,11 @@ NULL
     function(x)
 {
     .info(x, "Starting the worker in the foreground")
-    .debug(
-        x,
-        "Listening the Redis server from the host %s, port %d with the password %s",
-        rphost(x), rpport(x), rppassword(x)
+    fmt <- paste0(
+        "Listening to the Redis server from host '%s', port '%d' and ",
+        "password '%s'"
     )
+    .debug(x, fmt, rphost(x), rpport(x), rppassword(x))
 
     ## If more than one worker is required
     ## start workers in the backgroud

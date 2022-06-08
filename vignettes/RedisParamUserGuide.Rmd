@@ -6,18 +6,17 @@ author:
   email: Martin.Morgan@RoswellPark.org
 package: RedisParam
 output:
-    html_document:
-      keep_md: true
+    BiocStyle::html_document
 abstract: |
     RedisParam provides a BiocParallel 'back-end' for parallel
     computation.  RedisParam uses a Redis server to manage
     communication between manager and workers. This offers a number
     possibilities not available to other back-ends. For instance,
     workers can be launched independently of the manager, including
-    part way through a parallel evaluation job. RedisParam is well-suited to 
+    part way through a parallel evaluation job. RedisParam is well-suited to
     kubernetes and other cloud-based scenarios, in part because no special
     network configuration is required for manager and worker communication.
-    RedisParam supports all BiocParallel features, including `bplapply()`, 
+    RedisParam supports all BiocParallel features, including `bplapply()`,
     `bpiterate()`, reproducible random number streams, and flexible job
     scheduling.
 vignette: |
@@ -26,7 +25,11 @@ vignette: |
     %\VignetteEncoding{UTF-8}
 ---
 
-
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+    eval =  RedisParam::rpalive()
+)
+```
 
 # Getting started
 
@@ -52,33 +55,18 @@ $ redis-server
 On a single computer, in _R_, load and use the RedisParam package in
 the same way as other BiocParallel backends, e.g.,
 
-
-```r
+```{r}
 library(RedisParam)
-```
-
-```
-## Loading required package: BiocParallel
-```
-
-```r
 p <- RedisParam(workers = 5)
 result <- bplapply(1:7, function(i) Sys.getpid(), BPPARAM = p)
 table(unlist(result))
-```
-
-```
-## 
-## 66060 66062 66064 66066 
-##     2     1     2     2
 ```
 
 ## Independently-managed workers
 
 For independently managed workers, start workers in separate processes, e.g.,
 
-
-```r
+```{r, eval = FALSE}
 Sys.getpid()
 library(RedisParam)
 p <- RedisParam(jobname = "demo", is.worker = TRUE)
@@ -88,8 +76,7 @@ bpstart(p)
 Start and use the manager in a separate process. Be sure to use the
 same `jobname =`.
 
-
-```r
+```{r, eval = FALSE}
 Sys.getpid()            # e.g., 8563
 library(RedisParam)
 p <- RedisParam(jobname = 'demo', is.worker = FALSE)
@@ -99,45 +86,15 @@ unique(unlist(result)) # e.g., 9677
 
 Independently started workers can be terminated from the manager
 
-
-```r
+```{r, eval = FALSE}
 rpstopall(p)
 ```
 
 # Session info {.unnumbered}
 
-This version of the vignette was built on 2022-06-08 with the
+This version of the vignette was built on `r Sys.Date()` with the
 following software package versions:
 
-
+```{r sessionInfo, echo = FALSE}
+sessionInfo()
 ```
-## R version 4.2.0 (2022-04-22)
-## Platform: aarch64-apple-darwin20 (64-bit)
-## Running under: macOS Monterey 12.4
-## 
-## Matrix products: default
-## BLAS:   /Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/lib/libRblas.0.dylib
-## LAPACK: /Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/lib/libRlapack.dylib
-## 
-## locale:
-## [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
-## 
-## attached base packages:
-## [1] stats     graphics  grDevices utils     datasets  methods   base     
-## 
-## other attached packages:
-## [1] RedisParam_0.99.0   BiocParallel_1.30.3
-## 
-## loaded via a namespace (and not attached):
-##  [1] rstudioapi_0.13      knitr_1.39           magrittr_2.0.3      
-##  [4] R6_2.5.1             rlang_1.0.2          fastmap_1.1.0       
-##  [7] stringr_1.4.0        tools_4.2.0          parallel_4.2.0      
-## [10] xfun_0.31            cli_3.3.0            withr_2.5.0         
-## [13] lambda.r_1.2.4       futile.logger_1.4.3  jquerylib_0.1.4     
-## [16] htmltools_0.5.2      yaml_2.3.5           digest_0.6.29       
-## [19] formatR_1.12         sass_0.4.1           futile.options_1.0.1
-## [22] codetools_0.2-18     evaluate_0.15        rmarkdown_2.14      
-## [25] redux_1.1.3          stringi_1.7.6        compiler_4.2.0      
-## [28] bslib_0.3.1          jsonlite_1.8.0
-```
-

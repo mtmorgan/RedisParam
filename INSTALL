@@ -1,0 +1,15 @@
+This package depends on CRAN 'redux', which requires the 'hiredis'
+system library. Installing on a system without hiredis leads to
+
+```
+------------------------- ANTICONF ERROR ---------------------------
+Configuration failed because hiredis was not found. Try installing:
+ * deb: libhiredis-dev (Debian, Ubuntu, etc)
+ * rpm: hiredis-devel (Fedora, EPEL)
+ * brew: hiredis (OSX)
+If hiredis is already installed, check that 'pkg-config' is in your
+PATH and PKG_CONFIG_PATH contains a hiredis.pc file. If pkg-config
+is unavailable you can set INCLUDE_DIR and LIB_DIR manually via:
+R CMD INSTALL --configure-vars='INCLUDE_DIR=... LIB_DIR=...'
+--------------------------------------------------------------------
+```
