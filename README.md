@@ -1,33 +1,3 @@
----
-title: "Using RedisParam"
-author:
-- name: Martin Morgan
-  affiliation: Roswell Park Comprehensive Cancer Center
-  email: Martin.Morgan@RoswellPark.org
-package: RedisParam
-output:
-    html_document:
-      keep_md: true
-abstract: |
-    RedisParam provides a BiocParallel 'back-end' for parallel
-    computation.  RedisParam uses a Redis server to manage
-    communication between manager and workers. This offers a number
-    possibilities not available to other back-ends. For instance,
-    workers can be launched independently of the manager, including
-    part way through a parallel evaluation job. RedisParam is well-suited to 
-    kubernetes and other cloud-based scenarios, in part because no special
-    network configuration is required for manager and worker communication.
-    RedisParam supports all BiocParallel features, including `bplapply()`, 
-    `bpiterate()`, reproducible random number streams, and flexible job
-    scheduling.
-vignette: |
-    %\VignetteIndexEntry{Using RedisParam}
-    %\VignetteEngine{knitr::rmarkdown}
-    %\VignetteEncoding{UTF-8}
----
-
-
-
 # Getting started
 
 RedisParam implements a [BiocParallel][] backend using redis, rather
