@@ -1,6 +1,6 @@
 Package: RedisParam
 Title: Provide a 'redis' back-end for BiocParallel
-Version: 0.99.1
+Version: 1.0.0
 Authors@R: c(
     person(
         "Martin", "Morgan",
