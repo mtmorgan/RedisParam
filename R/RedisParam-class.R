@@ -251,6 +251,6 @@ rpstopall <-
 bpstopall <-
     function(x)
 {
-    .Deprecated("bpstopall")
+    .Deprecated("rpstopall")
     rpstopall(x)
 }
