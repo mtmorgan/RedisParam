@@ -1,3 +1,7 @@
+#' @importFrom logger log_appender appender_file appender_stdout
+#'     log_formatter formatter_sprintf log_threshold log_trace
+#'     log_debug log_info log_warn log_error
+
 ## Get the logger name
 get.logger.name <-
     function(x)
@@ -20,13 +24,15 @@ config.logger <-
     function(x)
 {
     logger.name <- get.logger.name(x)
+    log_formatter(formatter_sprintf, namespace = logger.name)
+    log_appender(appender_stdout)
     if (bplog(x)) {
         set.log.threshold(x)
         if (!is.na(bplogdir(x))) {
             filename <- get.log.file(x)
-            flog.appender(
-                appender.file(filename),
-                name = logger.name
+            log_appender(
+                appender_file(filename),
+                namespace = logger.name
             )
         }
     }
@@ -37,35 +43,35 @@ set.log.threshold <-
 {
     threshold <- bpthreshold(x)
     logger.name <- get.logger.name(x)
-    flog.threshold(get(threshold), name = logger.name)
+    log_threshold(get(threshold), namespace = logger.name)
 }
 
 .trace <-
     function(x, ...)
 {
     if (!missing(x) && bplog(x))
-        flog.trace(..., name = get.logger.name(x))
+        log_trace(..., namespace = get.logger.name(x))
 }
 
 .debug <-
     function(x, ...)
 {
     if (!missing(x) && bplog(x))
-        flog.debug(..., name = get.logger.name(x))
+        log_debug(..., namespace = get.logger.name(x))
 }
 
 .info <-
     function(x, ...)
 {
     if (!missing(x) && bplog(x))
-        flog.info(..., name = get.logger.name(x))
+        log_info(..., namespace = get.logger.name(x))
 }
 
 .warn <-
     function(x, fmt, ...)
 {
     if (!missing(x) && bplog(x)) {
-        value <- flog.warn(fmt, ..., name = get.logger.name(x))
+        value <- log_warn(fmt, ..., namespace = get.logger.name(x))
     } else {
         value <- sprintf(fmt, ...)
     }
@@ -76,7 +82,7 @@ set.log.threshold <-
     function(x, fmt, ...)
 {
     if (!missing(x) && bplog(x)) {
-        value <- flog.error(fmt, ..., name = get.logger.name(x))
+        value <- log_error(fmt, ..., namespace = get.logger.name(x))
     } else {
         value <- sprintf(fmt, ...)
     }
